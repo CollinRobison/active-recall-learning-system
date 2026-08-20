@@ -32,7 +32,7 @@ learning-workspace/
 └── index/{README.md,manifest.jsonl,milvus/}
 ```
 
-`index/` is derived. Deleting it must not lose learning state.
+`index/` is derived. Deleting it must not lose learning state. A reindex reads `sources/<source-id>/source.md` and `extracted.md` again; it does not delete, move, or rewrite those files, topic/path records, sessions, confusion records, or reviews. Milvus rebuilds take a timestamped database snapshot in `index/milvus/backups/` before replacing the vector collection. If embedding fails, the source workspace remains usable through the lexical manifest and the status file identifies the recovery snapshot.
 
 ## Frontmatter
 

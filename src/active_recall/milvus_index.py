@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -49,34 +50,34 @@ class MilvusLiteIndex:
     def rebuild(self, provider: EmbeddingProvider) -> dict[str, Any]:
         manifest_result = rebuild_manifest(self.workspace)
         entries = read_manifest(self.workspace)
-        if self.client.has_collection(self.collection):
-            self.client.drop_collection(self.collection)
-        self._ensure_collection(provider.dimension)
-        if entries:
-            vectors = provider.embed([entry["content"] for entry in entries])
-            rows = []
-            for entry, vector in zip(entries, vectors):
-                rows.append({
-                    "record_id": entry["record_id"],
-                    "embedding": vector,
-                    "source_id": entry["source_id"],
-                    "topic_ids": json.dumps(entry.get("topic_ids", [])),
-                    "path_ids": json.dumps(entry.get("path_ids", [])),
-                    "section": entry.get("section") or "",
-                    "line_start": entry.get("line_start", 0),
-                    "content_hash": entry["content_hash"],
-                    "workspace_file": entry["workspace_file"],
-                    "content": entry["content"],
-                })
-            self.client.insert(collection_name=self.collection, data=rows)
+        backup: Path | None = None
+        if self.database.exists():
+            backup_dir = self.database.parent / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup = backup_dir / f"workspace-{now_iso().replace(':', '-')}.db"
+            shutil.copy2(self.database, backup)
+        try:
+            if self.client.has_collection(self.collection):
+                self.client.drop_collection(self.collection)
+            self._ensure_collection(provider.dimension)
+            if entries:
+                vectors = provider.embed([entry["content"] for entry in entries])
+                rows = [{
+                    "record_id": entry["record_id"], "embedding": vector, "source_id": entry["source_id"],
+                    "topic_ids": json.dumps(entry.get("topic_ids", [])), "path_ids": json.dumps(entry.get("path_ids", [])),
+                    "section": entry.get("section") or "", "line_start": entry.get("line_start", 0),
+                    "content_hash": entry["content_hash"], "workspace_file": entry["workspace_file"], "content": entry["content"],
+                } for entry, vector in zip(entries, vectors)]
+                self.client.insert(collection_name=self.collection, data=rows)
+        except Exception as exc:
+            status = {"status": "failed", "backend": "milvus-lite", "records": len(entries), "updated_at": now_iso(),
+                      "recovery_backup": str(backup.relative_to(self.workspace)) if backup else None, "error": str(exc)}
+            atomic_write(self.workspace / STATUS_FILE, json.dumps(status, indent=2) + "\n")
+            raise
         status = {
-            "status": "current",
-            "backend": "milvus-lite",
-            "collection": self.collection,
-            "database": str(self.database.relative_to(self.workspace)),
-            "records": len(entries),
-            "updated_at": now_iso(),
-            **embedding_metadata(provider),
+            "status": "current", "backend": "milvus-lite", "collection": self.collection,
+            "database": str(self.database.relative_to(self.workspace)), "records": len(entries), "updated_at": now_iso(),
+            "recovery_backup": str(backup.relative_to(self.workspace)) if backup else None, **embedding_metadata(provider),
         }
         atomic_write(self.workspace / STATUS_FILE, json.dumps(status, indent=2) + "\n")
         return {**manifest_result, **status}
