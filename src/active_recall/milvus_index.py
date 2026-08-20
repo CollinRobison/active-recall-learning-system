@@ -39,7 +39,7 @@ class MilvusLiteIndex:
 
     def _ensure_collection(self, name: str, dimension: int) -> None:
         if not self.client.has_collection(name):
-            self.client.create_collection(collection_name=name, dimension=dimension, primary_field_name="record_id", id_type="VARCHAR", vector_field_name="embedding", metric_type="COSINE", auto_id=False)
+            self.client.create_collection(collection_name=name, dimension=dimension, primary_field_name="record_id", id_type="str", vector_field_name="embedding", metric_type="COSINE", auto_id=False)
 
     def _rows(self, entries: list[dict[str, Any]], provider: EmbeddingProvider) -> list[dict[str, Any]]:
         vectors = provider.embed([entry["content"] for entry in entries])
@@ -57,8 +57,12 @@ class MilvusLiteIndex:
         """Build a fresh collection generation, then atomically publish it in status."""
         manifest_result = rebuild_manifest(self.workspace); entries = read_manifest(self.workspace); prior = self._status(); backup = None
         if self.database.exists():
-            backup_dir = self.database.parent / "backups"; backup_dir.mkdir(parents=True, exist_ok=True); backup = backup_dir / f"workspace-{now_iso().replace(':', '-')}.db"; shutil.copy2(self.database, backup)
-        generation = int(prior.get("generation", 0)) + 1; name = f"{self.collection}_g{generation}"
+            backup_dir = self.database.parent / "backups"; backup_dir.mkdir(parents=True, exist_ok=True); backup = backup_dir / f"workspace-{now_iso().replace(':', '-')}"
+            if self.database.is_dir():
+                shutil.copytree(self.database, backup)
+            else:
+                shutil.copy2(self.database, backup)
+        generation = int(prior.get("generation") or 0) + 1; name = f"{self.collection}_g{generation}"
         try:
             self._ensure_collection(name, provider.dimension)
             if entries: self.client.insert(collection_name=name, data=self._rows(entries, provider))
@@ -89,6 +93,8 @@ class MilvusLiteIndex:
     def query(self, provider: EmbeddingProvider, text: str, *, limit: int = 5, source_id: str | None = None, topic_id: str | None = None, path_id: str | None = None) -> list[dict[str, Any]]:
         name = self._status().get("collection", self.collection)
         if not self.client.has_collection(name): return []
+        if hasattr(self.client, "load_collection"):
+            self.client.load_collection(collection_name=name)
         expression = f'source_id == "{_safe_filter_value(source_id)}"' if source_id else ""
         result = self.client.search(collection_name=name, data=provider.embed([text]), limit=max(limit * 4, limit), filter=expression, output_fields=["source_id", "topic_ids", "path_ids", "section", "line_start", "content_hash", "workspace_file", "content"])
         matches = []
