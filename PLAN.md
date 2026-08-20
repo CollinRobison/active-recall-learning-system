@@ -2,9 +2,24 @@
 
 ## Planning document
 
-**Status:** Design and implementation plan only  
-**Implementation status:** Not implemented  
+**Status:** Active implementation plan
+**Implementation status:** Protocol, schemas, portable skills, runtime workspace tools, optional embeddings/Milvus boundary, and grounded model adapters implemented; interactive orchestration and production hardening remain.
 **Primary goal:** Create a portable Markdown-based learning system that can be used from Pi, Claude Code, Codex CLI, Gemini CLI, Cursor, OpenCode, Copilot CLI, Hermes, and similar agent harnesses.
+
+## Current implementation status and next work
+
+The repository now contains the Phase 0 protocol package plus a Python runtime for workspace initialization, Markdown/text/PDF/URL ingestion, sessions, confusion records, review scheduling, citation checks, lexical retrieval, optional embeddings/Milvus Lite, and source-grounded model question/evaluation adapters. The current implementation is intentionally provider-agnostic and preserves Markdown as the source of truth.
+
+The next work is tracked in this order:
+
+1. **Interactive tutor/session orchestration:** connect model-generated questions and evaluations to session files, confusion items, review dates, progress evidence, hints, retries, pause/resume, mode switching, and adaptive difficulty.
+2. **Catalog and learning paths:** add topic/path creation and editing, prerequisites, relationships, source associations, confirmation workflows, and ranked next-study recommendations.
+3. **Adaptive review:** maintain due-review files and history, confidence calibration, recall/explanation/application evidence, interleaving, and delayed-review scheduling.
+4. **Ingestion completeness:** add OCR for scanned PDFs/images, DOCX/EPUB extraction, better webpage parsing, repository/code ingestion, metadata confirmation, and source-conflict handling.
+5. **Milvus hardening:** validate against an installed Milvus Lite version, support incremental/stale-record updates, approved-note collections, topic/path filters, and rebuild integration tests.
+6. **Evaluation and adapters:** add golden learning examples, exact citation-location tests, provider integration tests, and concrete installation/invocation instructions for each harness adapter.
+
+The interactive tutor/session orchestrator is the next implementation milestone because the current model integration can generate and evaluate individual turns but does not yet run a complete adaptive learning session automatically.
 
 ---
 
