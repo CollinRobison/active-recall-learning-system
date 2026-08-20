@@ -34,6 +34,10 @@ learning-workspace/
 
 `index/` is derived. Deleting it must not lose learning state. A reindex reads `sources/<source-id>/source.md` and `extracted.md` again; it does not delete, move, or rewrite those files, topic/path records, sessions, confusion records, or reviews. Milvus rebuilds take a timestamped database snapshot in `index/milvus/backups/` before replacing the vector collection. If embedding fails, the source workspace remains usable through the lexical manifest and the status file identifies the recovery snapshot.
 
+## Portable Git workspaces
+
+A workspace may be a private Git repository shared sequentially between machines. Commit the canonical Markdown records (`sources/`, `topics/`, `paths/`, `sessions/`, `reviews/`, `confusion/`, and `progress/`), then pull before starting work on another machine. Ignore `index/milvus/`, `index/vector-status.json`, and `index/manifest.jsonl`: they are local derived caches and can be rebuilt from `extracted.md` after a pull. A source's `original_location` may be unavailable on the second machine; that does not prevent retrieval, tutoring, or reindexing because `extracted.md` is the portable teaching record. Keep original PDFs/EPUBs separately if they are not committed.
+
 ## Frontmatter
 
 Use YAML frontmatter for stable identity, filtering, and lifecycle fields. IDs are immutable slugs with a kind prefix (`topic-`, `source-`, `path-`, `session-`, `confusion-`). Timestamps use ISO 8601 UTC. Arrays are YAML arrays, not comma-separated strings.
