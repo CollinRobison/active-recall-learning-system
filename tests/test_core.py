@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from active_recall.citations import validate_citation
@@ -210,6 +213,62 @@ class ModelProviderTests(unittest.TestCase):
             script.write_text("import json\nprint(json.dumps({'ok': True}))\n", encoding="utf-8")
             response = CommandModelProvider([sys.executable, str(script)]).complete(system="rules", user="request")
             self.assertEqual(response, {"ok": True})
+
+    def test_openai_compatible_provider_request_and_response_contract(self) -> None:
+        from active_recall.model import OpenAICompatibleProvider
+
+        received: dict[str, object] = {}
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                received["authorization"] = self.headers.get("Authorization")
+                received["payload"] = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                body = json.dumps({"choices": [{"message": {"content": json.dumps({"ok": True})}}]}).encode()
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+            def log_message(self, *_): pass
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever); thread.start()
+        try:
+            import os
+            previous = os.environ.get("TEST_ACTIVE_RECALL_KEY"); os.environ["TEST_ACTIVE_RECALL_KEY"] = "integration-secret"
+            provider = OpenAICompatibleProvider(f"http://127.0.0.1:{server.server_port}/v1/chat/completions", "test-model", "TEST_ACTIVE_RECALL_KEY")
+            self.assertEqual(provider.complete(system="system rule", user="user request"), {"ok": True})
+            self.assertEqual(received["authorization"], "Bearer integration-secret")
+            self.assertEqual(received["payload"]["model"], "test-model")
+            self.assertEqual(received["payload"]["response_format"], {"type": "json_object"})
+        finally:
+            if previous is None: os.environ.pop("TEST_ACTIVE_RECALL_KEY", None)
+            else: os.environ["TEST_ACTIVE_RECALL_KEY"] = previous
+            server.shutdown(); thread.join(); server.server_close()
+
+
+class CitationLocationTests(unittest.TestCase):
+    def test_citations_require_exact_section_page_and_line_locations(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "lesson.md"
+            source.write_text("# Exact Heading\n\nEvidence is here.\n", encoding="utf-8"); init_workspace(workspace)
+            source_id = ingest_local(source, workspace)["source_id"]
+            self.assertTrue(validate_citation(workspace, f"{source_id}, section Exact Heading")["valid"])
+            invalid_section = validate_citation(workspace, f"{source_id}, section Invented Heading")
+            self.assertFalse(invalid_section["valid"])
+            self.assertIn(source_id, invalid_section["location_errors"])
+            self.assertTrue(validate_citation(workspace, f"{source_id}, lines 1-3")["valid"])
+            self.assertFalse(validate_citation(workspace, f"{source_id}, line 99")["valid"])
+            extracted = workspace / "sources" / source_id / "extracted.md"
+            extracted.write_text("<!-- page: 4 -->\n\n# Exact Heading\nEvidence\n", encoding="utf-8")
+            self.assertTrue(validate_citation(workspace, f"{source_id}, page 4")["valid"])
+            self.assertFalse(validate_citation(workspace, f"{source_id}, page 5")["valid"])
+
+
+class GoldenLearningCaseTests(unittest.TestCase):
+    def test_golden_case_declares_source_grounded_question_and_three_outcomes(self) -> None:
+        golden = Path(__file__).parent / "golden" / "retrieval-practice.md"
+        text = golden.read_text(encoding="utf-8")
+        contract = json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0])
+        self.assertEqual(contract["question_type"], "explanation")
+        self.assertTrue(contract["expected_evidence"])
+        self.assertIn("source-golden-retrieval, section Why it works", contract["source_support"])
+        for outcome in ("**correct:**", "**partial:**", "**incorrect:**", "**overconfident incorrect:**", "**alternative wording correct:**", "**conflicting source:**", "**missing context:**"):
+            self.assertIn(outcome, text)
 
 
 class TutorTests(unittest.TestCase):

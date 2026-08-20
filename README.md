@@ -4,7 +4,7 @@ A harness-agnostic, Markdown-first learning protocol for Pi, Claude Code, Codex 
 
 ## Status
 
-The protocol package and runtime are implemented. The runtime covers workspace initialization, safe local Markdown/text/PDF/DOCX/EPUB/code ingestion (PDF support uses optional `pypdf`), optional local image OCR using `tesseract`, approved URL ingestion, metadata provenance/confirmation and duplicate-source conflict records, session persistence, confusion merging, transparent review scheduling, citation checks, lexical indexing, progress summaries, optional embeddings/Milvus Lite, and model-driven source-grounded tutoring.
+The protocol package and runtime are implemented. The runtime covers workspace initialization, safe local Markdown/text/PDF/DOCX/EPUB/code ingestion (PDF support uses optional `pypdf`), optional local image OCR using `tesseract`, approved URL ingestion, metadata provenance/confirmation and duplicate-source conflict records, session persistence, confusion merging, transparent review scheduling, exact source-location citation checks, lexical indexing, progress summaries, optional embeddings/Milvus Lite, and model-driven source-grounded tutoring.
 
 ## Design commitments
 
@@ -51,4 +51,4 @@ Do not place credentials, private keys, tokens, unrelated secrets, or raw enviro
 
 ## Validation
 
-Run `PYTHONPATH=src python -m unittest discover -s tests -v`. The deterministic suite covers frontmatter, non-destructive initialization, safe ingestion and provenance/conflict records, sessions, confusion merging, scheduling, citation checks, lexical manifest retrieval, generation-safe/incremental vector behavior through a fake Milvus client (no `pymilvus` required), embedding/model command contracts, and tutor evidence validation.
+Run `PYTHONPATH=src python -m unittest discover -s tests -v`. The deterministic suite covers frontmatter, non-destructive initialization, safe ingestion and provenance/conflict records, sessions, confusion merging, scheduling, exact heading/page/line citation validation, a hand-authored golden learning/evaluation case, lexical manifest retrieval, generation-safe/incremental vector behavior through a fake Milvus client (no `pymilvus` required), embedding/model command contracts, an in-process OpenAI-compatible HTTP provider integration, and tutor evidence validation. Each listed harness has concrete installation and invocation instructions under [`adapters/`](adapters/); live vendor-harness acceptance requires those harnesses and credentials to be installed locally.

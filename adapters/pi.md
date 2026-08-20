@@ -1,5 +1,14 @@
 # Pi adapter
 
-Pi can use this repository directly as a shared instruction package. At session start, identify the active workspace, read `protocol/` and the relevant `skills/*.md`, then use Pi file/search/shell tools to implement the procedure. Ask for confirmation before canonical or external changes. Keep behavior in the shared core; this file only maps capabilities.
+## Install
 
-Recommended invocation: `/skill` or a natural-language intent mapped to the skill file. Optional helper commands may be run locally according to `tools/*.md`.
+Put a project instruction in the directory where Pi is launched:
+
+```sh
+printf '\nFor active-recall requests, read /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and applicable /absolute/path/to/active-recall-learning-system/skills/*.md. Preserve citations, confirmations, and incremental state.\n' >> AGENTS.md
+python -m pip install -e /absolute/path/to/active-recall-learning-system
+```
+
+## Invoke
+
+Launch Pi from that directory and say `Use active-recall study-session for WORKSPACE` (or the named skill). Pi can execute `learning ingest INPUT --workspace WORKSPACE`, `learning reindex WORKSPACE`, and other documented helpers. The workspace is not this protocol checkout; name it explicitly in each request.
