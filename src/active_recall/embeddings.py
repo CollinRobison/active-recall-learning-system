@@ -105,4 +105,8 @@ class SentenceTransformerProvider:
 
 
 def embedding_metadata(provider: EmbeddingProvider) -> dict[str, Any]:
-    return {"provider": provider.name, "dimension": provider.dimension}
+    metadata = {"provider": provider.name, "dimension": provider.dimension}
+    model_name = getattr(provider, "model_name", None)
+    if model_name:
+        metadata["model_name"] = str(model_name)
+    return metadata

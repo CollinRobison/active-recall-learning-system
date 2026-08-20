@@ -119,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--model", default="")
         command.add_argument("--api-key-env", default="ACTIVE_RECALL_MODEL_API_KEY")
         command.add_argument("--allow-network", action="store_true")
+        command.add_argument("--retrieval-engine", choices=["auto", "lexical", "vector"], default="auto", help="auto prefers a compatible current Milvus index, then falls back to lexical evidence")
+        command.add_argument("--embedding-provider", choices=["hash", "command", "sentence-transformers"], help="only needed to override automatic vector-provider selection")
+        command.add_argument("--embedding-dimension", type=int, help="required for hash/command provider overrides")
+        command.add_argument("--embedding-model-name", default="all-MiniLM-L6-v2")
+        command.add_argument("--embedding-command", help="local JSON embedding command; required for command provider override")
 
     question = sub.add_parser("tutor-question", help="generate one source-grounded retrieval question")
     add_tutor_options(question)
@@ -197,6 +202,24 @@ def _model_provider(args: argparse.Namespace):
     raise SystemExit("provide --provider-command or --endpoint")
 
 
+def _tutor_embedding_provider(args: argparse.Namespace):
+    if not args.embedding_provider:
+        return None
+    if args.embedding_provider == "sentence-transformers":
+        return SentenceTransformerProvider(args.embedding_model_name)
+    if not args.embedding_dimension:
+        raise SystemExit("--embedding-dimension is required with hash or command tutor retrieval overrides")
+    if args.embedding_provider == "hash":
+        return HashEmbeddingProvider(args.embedding_dimension)
+    if not args.embedding_command:
+        raise SystemExit("--embedding-command is required with --embedding-provider command")
+    return CommandEmbeddingProvider.from_string(args.embedding_command, args.embedding_dimension)
+
+
+def _tutor(args: argparse.Namespace) -> Tutor:
+    return Tutor(_workspace(str(args.workspace)), _model_provider(args), retrieval_engine=args.retrieval_engine, embedding_provider=_tutor_embedding_provider(args))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "init":
@@ -244,16 +267,16 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "validate-citation":
         print(json.dumps(validate_citation(_workspace(str(args.workspace)), args.text), indent=2))
     elif args.command == "tutor-question":
-        tutor = Tutor(_workspace(str(args.workspace)), _model_provider(args))
+        tutor = _tutor(args)
         print(json.dumps(tutor.generate_question(args.objective, mode=args.mode, source_id=args.source, topic_id=args.topic, limit=args.limit), indent=2))
     elif args.command == "tutor-evaluate":
-        tutor = Tutor(_workspace(str(args.workspace)), _model_provider(args))
+        tutor = _tutor(args)
         print(json.dumps(tutor.evaluate_answer(args.question, args.answer, objective=args.objective, confidence=args.confidence, source_id=args.source, topic_id=args.topic, limit=args.limit), indent=2))
     elif args.command == "tutor-session-question":
-        session = TutorSession(_workspace(str(args.workspace)), Tutor(_workspace(str(args.workspace)), _model_provider(args)))
+        session = TutorSession(_workspace(str(args.workspace)), _tutor(args))
         print(json.dumps(session.next_question(args.session, source_id=args.source, topic_id=args.topic), indent=2))
     elif args.command == "tutor-session-answer":
-        session = TutorSession(_workspace(str(args.workspace)), Tutor(_workspace(str(args.workspace)), _model_provider(args)))
+        session = TutorSession(_workspace(str(args.workspace)), _tutor(args))
         print(json.dumps(session.submit_answer(args.session, args.answer, confidence=args.confidence, source_id=args.source, topic_id=args.topic), indent=2))
     elif args.command == "tutor-session-hint":
         print(json.dumps({"hint": TutorSession(_workspace(str(args.workspace)), None).hint(args.session)}, indent=2))

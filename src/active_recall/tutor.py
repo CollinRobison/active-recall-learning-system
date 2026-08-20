@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .citations import source_ids_in
+from .embeddings import EmbeddingProvider, HashEmbeddingProvider, SentenceTransformerProvider
 from .index import query_manifest, read_manifest, rebuild_manifest
+from .milvus_index import MilvusLiteIndex, milvus_available, vector_status
 from .model import ModelProvider
 
 SYSTEM_RULES = """You are a source-grounded active-recall tutor.
@@ -62,12 +64,47 @@ def _context_text(evidence: list[dict[str, Any]]) -> str:
 class Tutor:
     workspace: Path
     provider: ModelProvider
+    retrieval_engine: str = "auto"
+    embedding_provider: EmbeddingProvider | None = None
+    vector_index: Any | None = None
 
     def _retrieve(self, text: str, *, source_id: str | None = None, topic_id: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         root = self.workspace.expanduser().resolve()
         if not read_manifest(root):
             rebuild_manifest(root)
+        if self.retrieval_engine not in {"auto", "lexical", "vector"}:
+            raise ValueError("retrieval_engine must be auto, lexical, or vector")
+        if self.retrieval_engine != "lexical":
+            try:
+                vector = self._vector_retrieve(root, text, source_id=source_id, topic_id=topic_id, limit=limit)
+                if vector:
+                    return vector
+            except Exception:
+                # A derived retrieval cache must never block access to canonical workspace evidence.
+                pass
         return query_manifest(root, text, source_id=source_id, topic_id=topic_id, limit=limit)
+
+    def _vector_retrieve(self, root: Path, text: str, *, source_id: str | None, topic_id: str | None, limit: int) -> list[dict[str, Any]]:
+        status = vector_status(root) if self.vector_index is None else {}
+        if self.vector_index is None and status.get("status") != "current":
+            return []
+        index = self.vector_index
+        if index is None:
+            if not milvus_available():
+                return []
+            index = MilvusLiteIndex(root)
+        provider = self.embedding_provider
+        if provider is None:
+            provider_name = status.get("provider")
+            if provider_name == "hash":
+                provider = HashEmbeddingProvider(int(status["dimension"]))
+            elif provider_name == "sentence-transformers" and status.get("model_name"):
+                provider = SentenceTransformerProvider(str(status["model_name"]))
+            else:
+                return []
+        if status and (status.get("provider") != provider.name or int(status.get("dimension") or 0) != provider.dimension):
+            return []
+        return index.query(provider, text, source_id=source_id, topic_id=topic_id, limit=limit)
 
     def generate_question(
         self,

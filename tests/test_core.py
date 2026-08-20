@@ -296,6 +296,21 @@ class GoldenLearningCaseTests(unittest.TestCase):
 
 
 class TutorTests(unittest.TestCase):
+    def test_auto_retrieval_prefers_available_vector_evidence_and_falls_back_to_lexical(self) -> None:
+        class FakeVectorIndex:
+            def __init__(self, matches): self.matches = matches; self.calls = []
+            def query(self, provider, text, **kwargs): self.calls.append((provider.name, text, kwargs)); return self.matches
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "lesson.md"
+            source.write_text("# Lexical\n\nFallback evidence is searchable.\n", encoding="utf-8")
+            init_workspace(workspace); source_id = ingest_local(source, workspace)["source_id"]
+            semantic = FakeVectorIndex([{"source_id": source_id, "workspace_file": f"sources/{source_id}/extracted.md", "line_start": 3, "content": "Semantic evidence."}])
+            tutor = Tutor(workspace, FakeModel([]), embedding_provider=HashEmbeddingProvider(8), vector_index=semantic)
+            self.assertEqual(tutor._retrieve("different wording")[0]["content"], "Semantic evidence.")
+            self.assertEqual(semantic.calls[0][0], "hash")
+            lexical = Tutor(workspace, FakeModel([]), embedding_provider=HashEmbeddingProvider(8), vector_index=FakeVectorIndex([]))
+            self.assertIn("Fallback evidence", lexical._retrieve("Fallback")[0]["content"])
+
     def test_tutor_uses_retrieved_evidence_and_rejects_unknown_citations(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

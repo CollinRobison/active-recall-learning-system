@@ -237,7 +237,7 @@ learning vector-reindex ~/Learning --embedding-provider hash --dimension 256 --i
 
 A full rebuild writes a new vector generation, publishes it only after building it, and records the active generation in `index/vector-status.json`. It takes a recovery snapshot under `index/milvus/backups/`. If it fails, the workspace Markdown and lexical manifest remain usable.
 
-`hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval.
+`hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval. Tutor and tutor-session commands use `--retrieval-engine auto` by default: they select a compatible current Milvus index first, then safely fall back to lexical retrieval if the vector cache is unavailable, stale, mismatched, fails, or has no evidence. Use `--retrieval-engine lexical` to force the portable baseline.
 
 ## 10. Optional high-fidelity Docling conversion
 
