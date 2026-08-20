@@ -7,6 +7,8 @@ import hashlib
 import html.parser
 import re
 import urllib.request
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -14,7 +16,29 @@ from typing import Any
 from .frontmatter import render
 from .workspace import append_catalog, atomic_write, sha256_file, slugify, now_iso
 
-SUPPORTED = {".md", ".markdown", ".txt", ".text", ".pdf"}
+SUPPORTED = {".md", ".markdown", ".txt", ".text", ".pdf", ".docx", ".epub"}
+
+
+def _extract_zip_xml(path: Path, member: str) -> str:
+    with zipfile.ZipFile(path) as archive:
+        root = ET.fromstring(archive.read(member))
+    return "\n".join(part.strip() for part in root.itertext() if part.strip()) + "\n"
+
+
+def _extract_docx(path: Path) -> tuple[str, list[str]]:
+    return _extract_zip_xml(path, "word/document.xml"), []
+
+
+def _extract_epub(path: Path) -> tuple[str, list[str]]:
+    with zipfile.ZipFile(path) as archive:
+        names = [name for name in archive.namelist() if name.lower().endswith((".xhtml", ".html", ".htm"))]
+        text = "\n".join(_HTMLTextExtractor_text(archive.read(name).decode("utf-8", errors="replace")) for name in names)
+    return text, []
+
+
+def _HTMLTextExtractor_text(value: str) -> str:
+    parser = _HTMLTextExtractor(); parser.feed(value); return parser.text()
+
 
 
 def _ignore_patterns(workspace: Path) -> list[str]:
@@ -130,6 +154,12 @@ def ingest_local(path: Path, workspace: Path, *, title: str | None = None, sourc
         if file.suffix.lower() == ".pdf":
             text, pdf_warnings = _extract_pdf(file)
             warnings.extend(pdf_warnings)
+        elif file.suffix.lower() == ".docx":
+            text, extracted_warnings = _extract_docx(file)
+            warnings.extend(extracted_warnings)
+        elif file.suffix.lower() == ".epub":
+            text, extracted_warnings = _extract_epub(file)
+            warnings.extend(extracted_warnings)
         else:
             text = file.read_text(encoding="utf-8")
         if not text.strip():

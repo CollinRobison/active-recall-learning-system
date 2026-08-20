@@ -4,7 +4,7 @@ A harness-agnostic, Markdown-first learning protocol for Pi, Claude Code, Codex 
 
 ## Status
 
-The protocol package and runtime are implemented. The runtime covers workspace initialization, local Markdown/text/PDF ingestion (PDF support uses optional `pypdf`), approved URL ingestion, session persistence, confusion merging, transparent review scheduling, citation checks, lexical indexing, progress summaries, optional embeddings/Milvus Lite, and model-driven source-grounded tutoring.
+The protocol package and runtime are implemented. The runtime covers workspace initialization, local Markdown/text/PDF/DOCX/EPUB ingestion (PDF support uses optional `pypdf`), approved URL ingestion, session persistence, confusion merging, transparent review scheduling, citation checks, lexical indexing, progress summaries, optional embeddings/Milvus Lite, and model-driven source-grounded tutoring.
 
 ## Design commitments
 
