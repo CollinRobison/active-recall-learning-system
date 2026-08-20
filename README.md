@@ -32,8 +32,7 @@ The protocol package and runtime are implemented. The runtime covers workspace i
 3. Add a local source: `learning ingest ./notes.md --workspace ~/Learning`
 4. Rebuild the fallback index: `learning reindex ~/Learning`
 5. Search it: `learning query ~/Learning "concept"`
-6. Start and persist a session:
-   `learning session-start ~/Learning --scope-id topic-example`, then use `learning session-turn ...`.
+6. Start a persisted model-driven session: `learning session-start ~/Learning --scope-id topic-example`, then call `learning tutor-session-question ~/Learning SESSION_PATH --provider-command 'my-model-adapter'` and `learning tutor-session-answer ~/Learning SESSION_PATH 'my answer' --provider-command 'my-model-adapter'`.
 7. Inspect evidence: `learning progress ~/Learning`.
 8. Build the optional vector index: `python -m pip install -e '.[milvus,local-embeddings]'`, then `learning vector-reindex ~/Learning --embedding-provider sentence-transformers`.
 9. Generate/evaluate model-driven turns through a local JSON adapter:

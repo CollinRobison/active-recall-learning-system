@@ -16,6 +16,7 @@ from active_recall.ingest import ingest_local
 from active_recall.schedule import next_review_at
 from active_recall.session import append_turn, load_session, start_session, update_status
 from active_recall.tutor import Tutor
+from active_recall.orchestrator import TutorSession
 from active_recall.workspace import init_workspace
 
 
@@ -197,6 +198,33 @@ class TutorTests(unittest.TestCase):
             }
             evaluation = Tutor(workspace, FakeModel([response])).evaluate_answer("Explain the concept", "It is an idea", source_id=result["source_id"])
             self.assertEqual(evaluation["classification"], "partial")
+
+
+class TutorSessionTests(unittest.TestCase):
+    def test_question_answer_hint_and_confusion_are_durably_orchestrated(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            source = root / "lesson.md"
+            source.write_text("# Retrieval\n\nRetrieval practice requires recalling information.\n", encoding="utf-8")
+            init_workspace(workspace)
+            source_id = ingest_local(source, workspace)["source_id"]
+            path = start_session(workspace, scope_type="topic", scope_ids=["topic-retrieval"], objective="retrieval practice", session_id="session-orchestrated")
+            question = {"question": "What does retrieval practice require?", "concept_id": "retrieval-practice", "question_type": "conceptual", "expected_evidence": ["recalling information"], "source_support": [source_id + ", section Retrieval"]}
+            evaluation = {"classification": "partial", "scores": {"accuracy": 2, "completeness": 2, "reasoning": 2, "application": None}, "missing_concepts": ["recalling information"], "misconceptions": [], "source_support": [source_id + ", section Retrieval"], "needs_confusion_item": True, "recommended_action": "retry"}
+            session = TutorSession(workspace, Tutor(workspace, FakeModel([question, evaluation])))
+            self.assertEqual(session.next_question(path, source_id=source_id)["question"], question["question"])
+            self.assertEqual(session.hint(path), "recalling information")
+            result = session.submit_answer(path, "Reading it again", confidence=2, source_id=source_id)
+            self.assertEqual(result["evaluation"]["classification"], "partial")
+            metadata, body = load_session(path)
+            self.assertNotIn("pending_question", metadata)
+            self.assertEqual(metadata["question_count"], 1)
+            self.assertIn("next review", body)
+            self.assertEqual(len(list((workspace / "confusion/open").glob("*.md"))), 1)
+            session.set_mode_or_difficulty(path, mode="feynman-teachback", difficulty="easier")
+            metadata, _ = load_session(path)
+            self.assertEqual(metadata["mode"], "feynman-teachback")
 
 
 class ScheduleTests(unittest.TestCase):

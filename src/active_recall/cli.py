@@ -14,6 +14,7 @@ from .milvus_index import MilvusLiteIndex, milvus_available, vector_status
 from .model import CommandModelProvider, OpenAICompatibleProvider
 from .progress import summarize
 from .tutor import Tutor
+from .orchestrator import TutorSession
 from .session import append_turn, start_session, update_status
 from .workspace import init_workspace, iter_records
 
@@ -104,6 +105,25 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation.add_argument("--objective")
     evaluation.add_argument("--confidence", type=int)
 
+    session_question = sub.add_parser("tutor-session-question", help="generate and durably save the next tutor-session question")
+    add_tutor_options(session_question)
+    session_question.add_argument("session", type=Path)
+
+    session_answer = sub.add_parser("tutor-session-answer", help="evaluate and durably save an answer to the pending session question")
+    add_tutor_options(session_answer)
+    session_answer.add_argument("session", type=Path)
+    session_answer.add_argument("answer")
+    session_answer.add_argument("--confidence", type=int)
+
+    session_hint = sub.add_parser("tutor-session-hint", help="return a source-grounded hint for the pending question")
+    session_hint.add_argument("workspace", type=Path)
+    session_hint.add_argument("session", type=Path)
+
+    session_update = sub.add_parser("tutor-session-update", help="change mode or difficulty for a resumable tutor session")
+    session_update.add_argument("workspace", type=Path)
+    session_update.add_argument("session", type=Path)
+    session_update.add_argument("--mode")
+    session_update.add_argument("--difficulty")
     vector_status_command = sub.add_parser("vector-status", help="show optional Milvus Lite status")
     vector_status_command.add_argument("workspace", type=Path)
 
@@ -189,6 +209,19 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "tutor-evaluate":
         tutor = Tutor(_workspace(str(args.workspace)), _model_provider(args))
         print(json.dumps(tutor.evaluate_answer(args.question, args.answer, objective=args.objective, confidence=args.confidence, source_id=args.source, topic_id=args.topic, limit=args.limit), indent=2))
+    elif args.command == "tutor-session-question":
+        session = TutorSession(_workspace(str(args.workspace)), Tutor(_workspace(str(args.workspace)), _model_provider(args)))
+        print(json.dumps(session.next_question(args.session, source_id=args.source, topic_id=args.topic), indent=2))
+    elif args.command == "tutor-session-answer":
+        session = TutorSession(_workspace(str(args.workspace)), Tutor(_workspace(str(args.workspace)), _model_provider(args)))
+        print(json.dumps(session.submit_answer(args.session, args.answer, confidence=args.confidence, source_id=args.source, topic_id=args.topic), indent=2))
+    elif args.command == "tutor-session-hint":
+        print(json.dumps({"hint": TutorSession(_workspace(str(args.workspace)), None).hint(args.session)}, indent=2))
+    elif args.command == "tutor-session-update":
+        if not args.mode and not args.difficulty:
+            raise SystemExit("provide --mode and/or --difficulty")
+        TutorSession(_workspace(str(args.workspace)), None).set_mode_or_difficulty(args.session, mode=args.mode, difficulty=args.difficulty)
+        print(args.session)
     elif args.command == "vector-status":
         print(json.dumps(vector_status(_workspace(str(args.workspace))), indent=2))
     elif args.command == "vector-reindex":
