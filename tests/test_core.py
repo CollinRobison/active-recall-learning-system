@@ -223,6 +223,8 @@ class TutorSessionTests(unittest.TestCase):
             self.assertEqual(metadata["question_count"], 1)
             self.assertIn("next review", body)
             self.assertEqual(len(list((workspace / "confusion/open").glob("*.md"))), 1)
+            self.assertIn("topic-retrieval", (workspace / "reviews/due.md").read_text(encoding="utf-8"))
+            self.assertIn("session-orchestrated", (workspace / "reviews/history.md").read_text(encoding="utf-8"))
             session.set_mode_or_difficulty(path, mode="feynman-teachback", difficulty="easier")
             metadata, _ = load_session(path)
             self.assertEqual(metadata["mode"], "feynman-teachback")

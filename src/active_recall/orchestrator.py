@@ -8,6 +8,7 @@ from .confusion import record_confusion
 from .frontmatter import render
 from .schedule import next_review_at
 from .session import append_turn, load_session
+from .reviews import record_review
 from .workspace import atomic_write, now_iso
 
 
@@ -74,12 +75,13 @@ class TutorSession:
         metadata.pop("pending_question", None)
         metadata["next_review_at"] = review_at
         self._write(path, metadata, body)
+        review = record_review(self.workspace, topic_id=topic_id or self._topic(metadata), session_id=str(metadata["id"]), classification=classification, confidence=confidence, next_review_at=review_at, citation=citation)
         if evaluation.get("needs_confusion_item"):
             record_confusion(self.workspace, topic_id=topic_id or self._topic(metadata), concept=str(question.get("concept_id", question["question"])),
                              question=str(question["question"]), answer=answer,
                              missing="; ".join(str(x) for x in evaluation.get("missing_concepts", [])) or classification,
                              source_location=citation or "Source location unavailable", source_ids=[], session_id=str(metadata["id"]))
-        return {"evaluation": evaluation, "next_review_at": review_at, "recommended_action": action}
+        return {"evaluation": evaluation, "review": review, "next_review_at": review_at, "recommended_action": action}
 
     def set_mode_or_difficulty(self, path: Path, *, mode: str | None = None, difficulty: str | None = None) -> None:
         metadata, body = load_session(path)
