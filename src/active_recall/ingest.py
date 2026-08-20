@@ -165,8 +165,9 @@ def ingest_local(path: Path, workspace: Path, *, title: str | None = None, sourc
         if not text.strip():
             warnings.append(f"empty file: {file}")
             continue
+        relative = file.relative_to(path).as_posix() if path.is_dir() else file.name
         if len(files) > 1:
-            chunks.append(f"\n\n<!-- source-file: {file.name} -->\n\n{text.rstrip()}\n")
+            chunks.append(f"\n\n<!-- source-file: {relative} -->\n\n{text.rstrip()}\n")
         else:
             chunks.append(text.rstrip() + "\n")
     combined = "".join(chunks)
@@ -187,7 +188,7 @@ def ingest_local(path: Path, workspace: Path, *, title: str | None = None, sourc
         "kind": "source",
         "title": display_title,
         "author": "Unknown",
-        "source_type": source_type or (path.suffix.lower().lstrip(".") if path.is_file() else "folder"),
+        "source_type": source_type or (path.suffix.lower().lstrip(".") if path.is_file() else ("repository" if (path / ".git").exists() else "folder")),
         "original_location": str(path),
         "checksum": checksum,
         "ingested_at": now_iso(),
