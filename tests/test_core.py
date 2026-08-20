@@ -17,6 +17,7 @@ from active_recall.schedule import next_review_at
 from active_recall.session import append_turn, load_session, start_session, update_status
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
+from active_recall.catalog import create_path, create_topic, recommend
 from active_recall.workspace import init_workspace
 
 
@@ -225,6 +226,20 @@ class TutorSessionTests(unittest.TestCase):
             session.set_mode_or_difficulty(path, mode="feynman-teachback", difficulty="easier")
             metadata, _ = load_session(path)
             self.assertEqual(metadata["mode"], "feynman-teachback")
+
+
+class CatalogTests(unittest.TestCase):
+    def test_topics_paths_validate_relationships_and_rank_next_study(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "book.md"
+            source.write_text("# Foundations\n\nImportant material.\n", encoding="utf-8"); init_workspace(workspace)
+            source_id = ingest_local(source, workspace)["source_id"]
+            first = create_topic(workspace, name="Foundations", source_ids=[source_id], objectives=["Explain foundations"])
+            topic_id = parse(first.read_text(encoding="utf-8"))[0]["id"]
+            path = create_path(workspace, name="Book path", topic_ids=[topic_id], source_ids=[source_id], target_outcome="Learn the book")
+            self.assertTrue(path.exists())
+            self.assertEqual(recommend(workspace)[0]["id"], topic_id)
+            with self.assertRaises(ValueError): create_path(workspace, name="Broken", topic_ids=["topic-missing"])
 
 
 class ScheduleTests(unittest.TestCase):

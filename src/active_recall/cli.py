@@ -15,6 +15,7 @@ from .model import CommandModelProvider, OpenAICompatibleProvider
 from .progress import summarize
 from .tutor import Tutor
 from .orchestrator import TutorSession
+from .catalog import create_path, create_topic, recommend
 from .session import append_turn, start_session, update_status
 from .workspace import init_workspace, iter_records
 
@@ -40,6 +41,18 @@ def build_parser() -> argparse.ArgumentParser:
     catalog = sub.add_parser("list", help="list available topics, sources, paths, and open confusion")
     catalog.add_argument("workspace", type=Path)
 
+    topic_create = sub.add_parser("topic-create", help="create a topic record; relationships are validated")
+    topic_create.add_argument("workspace", type=Path); topic_create.add_argument("name")
+    topic_create.add_argument("--objective", action="append"); topic_create.add_argument("--source", action="append")
+    topic_create.add_argument("--prerequisite", action="append"); topic_create.add_argument("--related", action="append"); topic_create.add_argument("--path", action="append")
+
+    path_create = sub.add_parser("path-create", help="create an ordered learning path from existing topics")
+    path_create.add_argument("workspace", type=Path); path_create.add_argument("name")
+    path_create.add_argument("--topic", action="append", required=True); path_create.add_argument("--source", action="append")
+    path_create.add_argument("--prerequisite", action="append"); path_create.add_argument("--target-outcome", default="")
+
+    recommend_command = sub.add_parser("recommend", help="rank due confusion, path order, and active topics")
+    recommend_command.add_argument("workspace", type=Path); recommend_command.add_argument("--limit", type=int, default=5)
     start = sub.add_parser("session-start", help="create a resumable session")
     start.add_argument("workspace", type=Path)
     start.add_argument("--scope-type", default="topic")
@@ -186,6 +199,12 @@ def main(argv: list[str] | None = None) -> int:
             if metadata.get("kind") in {"topic", "source", "path", "confusion-item"}:
                 records.append({"id": metadata.get("id"), "kind": metadata.get("kind"), "status": metadata.get("status"), "path": str(path)})
         print(json.dumps(sorted(records, key=lambda item: (item["kind"], item["id"] or "")), indent=2))
+    elif args.command == "topic-create":
+        print(create_topic(_workspace(str(args.workspace)), name=args.name, objectives=args.objective, source_ids=args.source, prerequisites=args.prerequisite, related_topics=args.related, path_ids=args.path))
+    elif args.command == "path-create":
+        print(create_path(_workspace(str(args.workspace)), name=args.name, topic_ids=args.topic, source_ids=args.source, prerequisites=args.prerequisite, target_outcome=args.target_outcome))
+    elif args.command == "recommend":
+        print(json.dumps(recommend(_workspace(str(args.workspace)), limit=args.limit), indent=2))
     elif args.command == "session-start":
         path = start_session(_workspace(str(args.workspace)), scope_type=args.scope_type, scope_ids=args.scope_id, mode=args.mode, objective=args.objective, difficulty=args.difficulty, session_id=args.session_id)
         print(path)

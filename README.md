@@ -33,9 +33,10 @@ The protocol package and runtime are implemented. The runtime covers workspace i
 4. Rebuild the fallback index: `learning reindex ~/Learning`
 5. Search it: `learning query ~/Learning "concept"`
 6. Start a persisted model-driven session: `learning session-start ~/Learning --scope-id topic-example`, then call `learning tutor-session-question ~/Learning SESSION_PATH --provider-command 'my-model-adapter'` and `learning tutor-session-answer ~/Learning SESSION_PATH 'my answer' --provider-command 'my-model-adapter'`.
-7. Inspect evidence: `learning progress ~/Learning`.
-8. Build the optional vector index: `python -m pip install -e '.[milvus,local-embeddings]'`, then `learning vector-reindex ~/Learning --embedding-provider sentence-transformers`.
-9. Generate/evaluate model-driven turns through a local JSON adapter:
+7. Create a durable curriculum: `learning topic-create ~/Learning "Book foundations" --source source-... --objective "Explain the central ideas"`, then `learning path-create ~/Learning "My book path" --topic topic-book-foundations --source source-...`; ask `learning recommend ~/Learning` for the ranked next step.
+8. Inspect evidence: `learning progress ~/Learning`.
+9. Build the optional vector index: `python -m pip install -e '.[milvus,local-embeddings]'`, then `learning vector-reindex ~/Learning --embedding-provider sentence-transformers`.
+10. Generate/evaluate model-driven turns through a local JSON adapter:
    `learning tutor-question ~/Learning --provider-command 'my-model-adapter' "explain variables"`.
 
 The Markdown skills remain the behavior contract for an agent tutor. See [`skills/study-session.md`](skills/study-session.md), [`skills/source-ingest.md`](skills/source-ingest.md), [`tools/index-interface.md`](tools/index-interface.md), and [`tools/model-interface.md`](tools/model-interface.md). URL ingestion requires explicit `--allow-network`; PDF, Milvus, and local embedding providers are optional extras.

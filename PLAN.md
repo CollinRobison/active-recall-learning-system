@@ -18,7 +18,7 @@ The next work is tracked in this order:
 4. **Milvus hardening:** validate against an installed Milvus Lite version, support incremental/stale-record updates, approved-note collections, topic/path filters, and rebuild integration tests.
 5. **Evaluation and adapters:** add golden learning examples, exact citation-location tests, provider integration tests, and concrete installation/invocation instructions for each harness adapter.
 
-Catalog and learning paths are the next implementation milestone because durable tutor sessions now persist questions, answers, citations, confusion items, review dates, hints, and session-mode/difficulty changes, but users still cannot define and rank structured curricula.
+The catalog runtime now creates and validates Markdown topic/path records and produces a transparent initial ranking of open confusion, active path order, and active topics. Editing, confirmation workflows, and progress-aware prerequisite blocking remain.
 
 ---
 
