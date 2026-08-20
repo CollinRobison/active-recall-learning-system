@@ -18,7 +18,7 @@ The next work is tracked in this order:
 4. **Milvus hardening:** validate against an installed Milvus Lite version, support incremental/stale-record updates, approved-note collections, topic/path filters, and rebuild integration tests.
 5. **Evaluation and adapters:** add golden learning examples, exact citation-location tests, provider integration tests, and concrete installation/invocation instructions for each harness adapter.
 
-The catalog runtime now creates and validates Markdown topic/path records and produces a transparent initial ranking of open confusion, active path order, and active topics. Editing, confirmation workflows, and progress-aware prerequisite blocking remain.
+The catalog runtime now creates, edits (with explicit preview/confirmation), and validates Markdown topic/path records; maintains reciprocal source associations; rejects prerequisite cycles; and produces a transparent ranking of open confusion, unblocked active path order, and active topics. Its prerequisite gate uses explicit completion or persisted correct evidence without unresolved confusion; richer adaptive calibration remains.
 
 ---
 

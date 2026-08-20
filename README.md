@@ -33,7 +33,7 @@ The protocol package and runtime are implemented. The runtime covers workspace i
 4. Rebuild the fallback index: `learning reindex ~/Learning`
 5. Search it: `learning query ~/Learning "concept"`
 6. Start a persisted model-driven session: `learning session-start ~/Learning --scope-id topic-example`, then call `learning tutor-session-question ~/Learning SESSION_PATH --provider-command 'my-model-adapter'` and `learning tutor-session-answer ~/Learning SESSION_PATH 'my answer' --provider-command 'my-model-adapter'`.
-7. Create a durable curriculum: `learning topic-create ~/Learning "Book foundations" --source source-... --objective "Explain the central ideas"`, then `learning path-create ~/Learning "My book path" --topic topic-book-foundations --source source-...`; ask `learning recommend ~/Learning` for the ranked next step.
+7. Create a durable curriculum: `learning topic-create ~/Learning "Book foundations" --source source-... --objective "Explain the central ideas"`, then `learning path-create ~/Learning "My book path" --topic topic-book-foundations --source source-...`; ask `learning recommend ~/Learning` for the ranked next step. Preview a canonical topic change with `learning topic-edit ~/Learning topic-book-foundations --status completed`, then add `--confirm` to apply it.
 8. Inspect evidence: `learning progress ~/Learning`.
 9. Build the optional vector index: `python -m pip install -e '.[milvus,local-embeddings]'`, then `learning vector-reindex ~/Learning --embedding-provider sentence-transformers`.
 10. Generate/evaluate model-driven turns through a local JSON adapter:

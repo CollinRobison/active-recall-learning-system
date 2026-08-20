@@ -15,7 +15,7 @@ from .model import CommandModelProvider, OpenAICompatibleProvider
 from .progress import summarize
 from .tutor import Tutor
 from .orchestrator import TutorSession
-from .catalog import create_path, create_topic, recommend
+from .catalog import create_path, create_topic, recommend, update_topic
 from .session import append_turn, start_session, update_status
 from .workspace import init_workspace, iter_records
 
@@ -45,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
     topic_create.add_argument("workspace", type=Path); topic_create.add_argument("name")
     topic_create.add_argument("--objective", action="append"); topic_create.add_argument("--source", action="append")
     topic_create.add_argument("--prerequisite", action="append"); topic_create.add_argument("--related", action="append"); topic_create.add_argument("--path", action="append")
+
+    topic_edit = sub.add_parser("topic-edit", help="preview or explicitly confirm a canonical topic relationship/status edit")
+    topic_edit.add_argument("workspace", type=Path); topic_edit.add_argument("topic_id")
+    topic_edit.add_argument("--source", action="append"); topic_edit.add_argument("--prerequisite", action="append"); topic_edit.add_argument("--related", action="append"); topic_edit.add_argument("--path", action="append")
+    topic_edit.add_argument("--status", choices=["active", "completed", "archived"])
+    topic_edit.add_argument("--confirm", action="store_true", help="apply the previewed canonical Markdown change")
 
     path_create = sub.add_parser("path-create", help="create an ordered learning path from existing topics")
     path_create.add_argument("workspace", type=Path); path_create.add_argument("name")
@@ -201,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(sorted(records, key=lambda item: (item["kind"], item["id"] or "")), indent=2))
     elif args.command == "topic-create":
         print(create_topic(_workspace(str(args.workspace)), name=args.name, objectives=args.objective, source_ids=args.source, prerequisites=args.prerequisite, related_topics=args.related, path_ids=args.path))
+    elif args.command == "topic-edit":
+        print(json.dumps(update_topic(_workspace(str(args.workspace)), args.topic_id, source_ids=args.source, prerequisites=args.prerequisite, related_topics=args.related, path_ids=args.path, status=args.status, confirm=args.confirm), indent=2))
     elif args.command == "path-create":
         print(create_path(_workspace(str(args.workspace)), name=args.name, topic_ids=args.topic, source_ids=args.source, prerequisites=args.prerequisite, target_outcome=args.target_outcome))
     elif args.command == "recommend":

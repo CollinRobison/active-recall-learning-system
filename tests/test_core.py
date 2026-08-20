@@ -17,8 +17,8 @@ from active_recall.schedule import next_review_at
 from active_recall.session import append_turn, load_session, start_session, update_status
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
-from active_recall.catalog import create_path, create_topic, recommend
-from active_recall.workspace import init_workspace
+from active_recall.catalog import create_path, create_topic, recommend, update_topic
+from active_recall.workspace import init_workspace, iter_records
 
 
 class FakeModel:
@@ -242,6 +242,29 @@ class CatalogTests(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertEqual(recommend(workspace)[0]["id"], topic_id)
             with self.assertRaises(ValueError): create_path(workspace, name="Broken", topic_ids=["topic-missing"])
+
+    def test_topic_edit_requires_confirmation_syncs_sources_and_blocks_prerequisites(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "book.md"
+            source.write_text("# Foundations\n\nImportant material.\n", encoding="utf-8"); init_workspace(workspace)
+            source_id = ingest_local(source, workspace)["source_id"]
+            prerequisite_path = create_topic(workspace, name="Prerequisite", source_ids=[source_id])
+            prerequisite_id = parse(prerequisite_path.read_text(encoding="utf-8"))[0]["id"]
+            dependent_path = create_topic(workspace, name="Dependent", prerequisites=[prerequisite_id])
+            dependent_id = parse(dependent_path.read_text(encoding="utf-8"))[0]["id"]
+            preview = update_topic(workspace, dependent_id, source_ids=[source_id])
+            self.assertEqual(preview["status"], "confirmation-required")
+            self.assertEqual(parse(dependent_path.read_text(encoding="utf-8"))[0]["source_ids"], [])
+            applied = update_topic(workspace, dependent_id, source_ids=[source_id], confirm=True)
+            self.assertEqual(applied["status"], "applied")
+            source_record = next(metadata for _, metadata, _ in iter_records(workspace, {"source"}))
+            self.assertIn(dependent_id, source_record["topic_ids"])
+            recommendations = recommend(workspace)
+            self.assertNotIn(dependent_id, [item["id"] for item in recommendations])
+            update_topic(workspace, prerequisite_id, status="completed", confirm=True)
+            self.assertIn(dependent_id, [item["id"] for item in recommend(workspace)])
+            with self.assertRaises(ValueError):
+                update_topic(workspace, prerequisite_id, prerequisites=[dependent_id], confirm=True)
 
 
 class ScheduleTests(unittest.TestCase):

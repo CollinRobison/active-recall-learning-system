@@ -61,7 +61,9 @@ Write `origin: user-provided | extracted | inferred | user-confirmed | generated
 
 ## Relationships
 
-Relationships are IDs, not display names: `topic_ids`, `source_ids`, `path_ids`, `prerequisites`, and `related_topics`. Validate references when creating or editing a record. Many-to-many relationships are expected.
+Relationships are IDs, not display names: `topic_ids`, `source_ids`, `path_ids`, `prerequisites`, and `related_topics`. Validate references when creating or editing a record; reject direct or indirect topic-prerequisite cycles. Many-to-many relationships are expected. When a topic/path source association is changed, update the source's reciprocal `topic_ids`/`path_ids` in the same confirmed edit.
+
+Preview edits to canonical topic metadata and require an explicit confirmation before writing. A recommendation must not bypass an unmet prerequisite: treat it as ready only when it is explicitly `completed`, or when it has at least two persisted correct evaluations and no open confusion item. This is a transparent gate, not a claim of mastery.
 
 ## Evidence and mastery
 
