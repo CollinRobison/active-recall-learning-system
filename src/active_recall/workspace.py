@@ -73,7 +73,7 @@ def init_workspace(root: Path, *, overwrite_empty_files: bool = False) -> list[P
     starters = {
         "README.md": "# Learning workspace\n\nManaged by the portable active recall protocol.\n",
         "workspace.md": "# Workspace\n\nConfigure this workspace and its study goals here.\n",
-        "config.md": "# Configuration\n\n- Default mode: active-recall\n- Default questions: 5\n- Index: disabled\n",
+        "config.md": "# Configuration\n\n- Default mode: active-recall\n- Default questions: 5\n- Index backend: lexical\n- Vector backend: optional Milvus Lite\n- Embedding provider: configure in the invoking harness\n- Model provider: configure in the invoking harness\n",
         ".learningignore": "# One glob per line; secrets and unrelated directories should be excluded.\n.env\n*.pem\n*.key\n",
         "catalog/topics.md": "# Topics\n\nNo topics yet.\n",
         "catalog/sources.md": "# Sources\n\nNo sources yet.\n",

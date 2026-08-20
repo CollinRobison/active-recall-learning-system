@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -7,12 +8,25 @@ from pathlib import Path
 
 from active_recall.citations import validate_citation
 from active_recall.confusion import record_confusion
+from active_recall.embeddings import CommandEmbeddingProvider, HashEmbeddingProvider
+from active_recall.model import CommandModelProvider
 from active_recall.frontmatter import parse, render
 from active_recall.index import query_manifest, rebuild_manifest
 from active_recall.ingest import ingest_local
 from active_recall.schedule import next_review_at
 from active_recall.session import append_turn, load_session, start_session, update_status
+from active_recall.tutor import Tutor
 from active_recall.workspace import init_workspace
+
+
+class FakeModel:
+    name = "fake"
+
+    def __init__(self, responses):
+        self.responses = iter(responses)
+
+    def complete(self, *, system, user):
+        return next(self.responses)
 
 
 class FrontmatterTests(unittest.TestCase):
@@ -113,6 +127,76 @@ class SessionTests(unittest.TestCase):
             path = start_session(workspace, scope_type="topic", scope_ids=["topic-one"], session_id="session-test")
             with self.assertRaises(ValueError):
                 append_turn(path, question="Q", answer="A", confidence=6)
+
+
+class EmbeddingTests(unittest.TestCase):
+    def test_command_embedding_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / "embed.py"
+            script.write_text("import json, sys\nrequest = json.load(sys.stdin)\nprint(json.dumps({'embeddings': [[1.0, 0.0] for _ in request['texts']]}))\n", encoding="utf-8")
+            provider = CommandEmbeddingProvider([sys.executable, str(script)], dimension=2)
+            self.assertEqual(provider.embed(["a", "b"]), [[1.0, 0.0], [1.0, 0.0]])
+
+    def test_hash_embeddings_are_normalized_and_deterministic(self) -> None:
+        provider = HashEmbeddingProvider(dimension=16)
+        first = provider.embed(["retrieval practice"])[0]
+        second = provider.embed(["retrieval practice"])[0]
+        self.assertEqual(first, second)
+        self.assertAlmostEqual(sum(value * value for value in first), 1.0)
+
+
+class ModelProviderTests(unittest.TestCase):
+    def test_command_model_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / "model.py"
+            script.write_text("import json\nprint(json.dumps({'ok': True}))\n", encoding="utf-8")
+            response = CommandModelProvider([sys.executable, str(script)]).complete(system="rules", user="request")
+            self.assertEqual(response, {"ok": True})
+
+
+class TutorTests(unittest.TestCase):
+    def test_tutor_uses_retrieved_evidence_and_rejects_unknown_citations(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            source = root / "lesson.md"
+            source.write_text("# Retrieval\n\nRetrieval practice requires recalling information.\n", encoding="utf-8")
+            init_workspace(workspace)
+            result = ingest_local(source, workspace)
+            source_id = result["source_id"]
+            good_question = {
+                "question": "What does retrieval practice require?",
+                "concept_id": "retrieval-practice",
+                "question_type": "conceptual",
+                "expected_evidence": ["recalling information"],
+                "source_support": [source_id + ", section Retrieval"],
+            }
+            tutor = Tutor(workspace, FakeModel([good_question]))
+            response = tutor.generate_question("retrieval practice", source_id=source_id)
+            self.assertEqual(response["question"], good_question["question"])
+            bad = dict(good_question, source_support=["source-not-retrieved, section X"])
+            with self.assertRaises(ValueError):
+                Tutor(workspace, FakeModel([bad])).generate_question("retrieval practice", source_id=source_id)
+
+    def test_evaluation_contract_is_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            source = root / "lesson.md"
+            source.write_text("# Concept\n\nA concept has an example.\n", encoding="utf-8")
+            init_workspace(workspace)
+            result = ingest_local(source, workspace)
+            response = {
+                "classification": "partial",
+                "scores": {"accuracy": 3, "completeness": 2, "reasoning": 2, "application": None},
+                "missing_concepts": ["example"],
+                "misconceptions": [],
+                "source_support": [result["source_id"] + ", section Concept"],
+                "needs_confusion_item": True,
+                "recommended_action": "retry",
+            }
+            evaluation = Tutor(workspace, FakeModel([response])).evaluate_answer("Explain the concept", "It is an idea", source_id=result["source_id"])
+            self.assertEqual(evaluation["classification"], "partial")
 
 
 class ScheduleTests(unittest.TestCase):

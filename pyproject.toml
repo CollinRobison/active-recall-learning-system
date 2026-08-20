@@ -11,6 +11,12 @@ requires-python = ">=3.9"
 license = {text = "MIT"}
 dependencies = []
 
+[project.optional-dependencies]
+pdf = ["pypdf>=4"]
+local-embeddings = ["sentence-transformers>=2.6"]
+milvus = ["pymilvus>=2.4"]
+all = ["pypdf>=4", "sentence-transformers>=2.6", "pymilvus>=2.4"]
+
 [project.scripts]
 learning = "active_recall.cli:main"
 

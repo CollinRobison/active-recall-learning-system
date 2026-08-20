@@ -4,7 +4,7 @@ A harness-agnostic, Markdown-first learning protocol for Pi, Claude Code, Codex 
 
 ## Status
 
-The protocol package and a dependency-free runtime are implemented. The runtime covers workspace initialization, local Markdown/text/PDF ingestion (PDF support uses optional `pypdf`), approved URL ingestion, session persistence, confusion merging, transparent review scheduling, citation checks, lexical indexing, and progress summaries. Milvus embeddings and model-driven tutoring remain optional next steps.
+The protocol package and runtime are implemented. The runtime covers workspace initialization, local Markdown/text/PDF ingestion (PDF support uses optional `pypdf`), approved URL ingestion, session persistence, confusion merging, transparent review scheduling, citation checks, lexical indexing, progress summaries, optional embeddings/Milvus Lite, and model-driven source-grounded tutoring.
 
 ## Design commitments
 
@@ -35,8 +35,11 @@ The protocol package and a dependency-free runtime are implemented. The runtime 
 6. Start and persist a session:
    `learning session-start ~/Learning --scope-id topic-example`, then use `learning session-turn ...`.
 7. Inspect evidence: `learning progress ~/Learning`.
+8. Build the optional vector index: `python -m pip install -e '.[milvus,local-embeddings]'`, then `learning vector-reindex ~/Learning --embedding-provider sentence-transformers`.
+9. Generate/evaluate model-driven turns through a local JSON adapter:
+   `learning tutor-question ~/Learning --provider-command 'my-model-adapter' "explain variables"`.
 
-The Markdown skills remain the behavior contract for an agent tutor. See [`skills/study-session.md`](skills/study-session.md), [`skills/source-ingest.md`](skills/source-ingest.md), and [`tools/index-interface.md`](tools/index-interface.md). URL ingestion requires explicit `--allow-network`; PDF ingestion requires the optional `pypdf` package.
+The Markdown skills remain the behavior contract for an agent tutor. See [`skills/study-session.md`](skills/study-session.md), [`skills/source-ingest.md`](skills/source-ingest.md), [`tools/index-interface.md`](tools/index-interface.md), and [`tools/model-interface.md`](tools/model-interface.md). URL ingestion requires explicit `--allow-network`; PDF, Milvus, and local embedding providers are optional extras.
 
 ## Workspace
 
@@ -48,4 +51,4 @@ Do not place credentials, private keys, tokens, unrelated secrets, or raw enviro
 
 ## Validation
 
-Run `PYTHONPATH=src python -m unittest discover -s tests -v`. The deterministic suite covers frontmatter, non-destructive initialization, ingestion, sessions, confusion merging, scheduling, citation checks, and lexical manifest retrieval.
+Run `PYTHONPATH=src python -m unittest discover -s tests -v`. The deterministic suite covers frontmatter, non-destructive initialization, ingestion, sessions, confusion merging, scheduling, citation checks, lexical manifest retrieval, embedding/model command contracts, and tutor evidence validation.
