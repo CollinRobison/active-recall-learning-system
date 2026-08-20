@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "portable-active-recall"
+version = "0.1.0"
+description = "Markdown-first, harness-agnostic active recall learning workspace tools"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = []
+
+[project.scripts]
+learning = "active_recall.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
