@@ -18,6 +18,8 @@ from active_recall.session import append_turn, load_session, start_session, upda
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
 from active_recall.catalog import create_path, create_topic, recommend, update_topic
+from active_recall.progress import summarize
+from active_recall.reviews import record_review
 from active_recall.workspace import init_workspace, iter_records
 
 
@@ -222,9 +224,14 @@ class TutorSessionTests(unittest.TestCase):
             self.assertNotIn("pending_question", metadata)
             self.assertEqual(metadata["question_count"], 1)
             self.assertIn("next review", body)
+            self.assertIn("**Evidence dimension:** recall", body)
             self.assertEqual(len(list((workspace / "confusion/open").glob("*.md"))), 1)
             self.assertIn("topic-retrieval", (workspace / "reviews/due.md").read_text(encoding="utf-8"))
             self.assertIn("session-orchestrated", (workspace / "reviews/history.md").read_text(encoding="utf-8"))
+            self.assertIn("calibrated", (workspace / "reviews/history.md").read_text(encoding="utf-8"))
+            evidence = summarize(workspace, topic_id="topic-retrieval")
+            self.assertEqual(evidence["evidence_dimensions"], {"recall": 1})
+            self.assertEqual(evidence["calibration"], {"calibrated": 1})
             session.set_mode_or_difficulty(path, mode="feynman-teachback", difficulty="easier")
             metadata, _ = load_session(path)
             self.assertEqual(metadata["mode"], "feynman-teachback")
@@ -273,6 +280,18 @@ class ScheduleTests(unittest.TestCase):
         date, reason = next_review_at("partial", now=current)
         self.assertEqual(date, "2026-01-03T00:00:00Z")
         self.assertIn("partial", reason)
+
+    def test_review_queue_is_per_topic_and_keeps_calibration_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary); init_workspace(workspace)
+            record_review(workspace, topic_id="topic-one", session_id="session-a", classification="incorrect", confidence=5, next_review_at="2026-01-02T00:00:00Z", citation="source-one, section One")
+            record_review(workspace, topic_id="topic-one", session_id="session-b", classification="correct", confidence=1, next_review_at="2026-01-08T00:00:00Z", citation="source-one, section One", evidence_dimension="application", delayed=True)
+            due = (workspace / "reviews/due.md").read_text(encoding="utf-8")
+            history = (workspace / "reviews/history.md").read_text(encoding="utf-8")
+            self.assertEqual(due.count("`topic-one`"), 1)
+            self.assertIn("underconfident", due)
+            self.assertIn("overconfident", history)
+            self.assertIn("Evidence dimension: application", history)
 
 
 if __name__ == "__main__":

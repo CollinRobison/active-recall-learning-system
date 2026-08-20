@@ -77,13 +77,14 @@ class Tutor:
         source_id: str | None = None,
         topic_id: str | None = None,
         limit: int = 5,
+        avoid_concepts: list[str] | None = None,
     ) -> dict[str, Any]:
         evidence = self._retrieve(objective, source_id=source_id, topic_id=topic_id, limit=limit)
         if not evidence:
             raise InsufficientContext("no indexed source evidence matched the objective")
-        user = json.dumps({"mode": mode, "objective": objective, "evidence": _context_text(evidence)}, ensure_ascii=False)
+        user = json.dumps({"mode": mode, "objective": objective, "avoid_recent_concepts": avoid_concepts or [], "evidence": _context_text(evidence)}, ensure_ascii=False)
         payload = self.provider.complete(
-            system=SYSTEM_RULES + "Return fields: question, concept_id, objective, question_type, expected_evidence, difficulty, source_support, needs_more_context.",
+            system=SYSTEM_RULES + "Return fields: question, concept_id, objective, question_type, expected_evidence, difficulty, source_support, needs_more_context. When avoid_recent_concepts is nonempty, interleave by selecting a different concept when evidence permits.",
             user=user,
         )
         missing = [field for field in QUESTION_FIELDS if field not in payload]

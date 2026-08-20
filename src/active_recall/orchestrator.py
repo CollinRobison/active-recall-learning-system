@@ -37,6 +37,7 @@ class TutorSession:
         question = self.tutor.generate_question(
             str(metadata.get("objective", "")), mode=str(metadata.get("mode", "active-recall")),
             source_id=source_id, topic_id=topic_id,
+            avoid_concepts=list(metadata.get("recent_concepts", []))[-2:],
         )
         metadata["pending_question"] = question
         self._write(path, metadata, body)
@@ -67,15 +68,21 @@ class TutorSession:
         action = str(evaluation["recommended_action"])
         classification = str(evaluation["classification"])
         effective = "correct-low-confidence" if classification == "correct" and confidence is not None and confidence <= 2 else classification
+        evidence_dimension = {"application": "application", "explanation": "explanation", "teach-back": "explanation", "feynman": "explanation"}.get(str(question.get("question_type", "")).lower(), "recall")
+        delayed = bool(metadata.get("last_review_at"))
+        if evidence_dimension == "application" and classification == "correct" and delayed:
+            effective = "application-correct"
         review_at, reason = next_review_at(effective)
         append_turn(path, question=str(question["question"]), answer=answer, evaluation=classification,
                     confidence=confidence, feedback="; ".join(str(x) for x in evaluation.get("missing_concepts", [])) or action,
-                    citation=citation, action=f"{action}; next review {review_at} ({reason})")
+                    citation=citation, action=f"{action}; next review {review_at} ({reason})", evidence_dimension=evidence_dimension)
         metadata, body = load_session(path)
         metadata.pop("pending_question", None)
         metadata["next_review_at"] = review_at
+        metadata["last_review_at"] = now_iso()
+        metadata["recent_concepts"] = (list(metadata.get("recent_concepts", [])) + [str(question.get("concept_id", "unknown"))])[-4:]
         self._write(path, metadata, body)
-        review = record_review(self.workspace, topic_id=topic_id or self._topic(metadata), session_id=str(metadata["id"]), classification=classification, confidence=confidence, next_review_at=review_at, citation=citation)
+        review = record_review(self.workspace, topic_id=topic_id or self._topic(metadata), session_id=str(metadata["id"]), classification=classification, confidence=confidence, next_review_at=review_at, citation=citation, evidence_dimension=evidence_dimension, delayed=delayed)
         if evaluation.get("needs_confusion_item"):
             record_confusion(self.workspace, topic_id=topic_id or self._topic(metadata), concept=str(question.get("concept_id", question["question"])),
                              question=str(question["question"]), answer=answer,

@@ -20,7 +20,7 @@ Supported controls: `hint`, `retry`, `explain`, `show-source`, `skip`, `pause`, 
 
 ## Evidence policy
 
-Track recall, explanation, application, confidence, source coverage, and delayed review. A correct answer once is not mastery. Provisionally strong evidence requires success in at least two dimensions and one later review.
+Track recall, explanation, application, confidence, source coverage, and delayed review. Persist the evidence dimension with every evaluated turn and compare confidence with its result (`overconfident`, `underconfident`, or `calibrated`). A correct answer once is not mastery. Provisionally strong evidence requires success in at least two dimensions and one later review. In adaptive sessions, pass the last two concepts to question generation as concepts to avoid when evidence permits, so related concepts and question types are interleaved rather than blocked practice.
 
 ## Transparent review schedule
 

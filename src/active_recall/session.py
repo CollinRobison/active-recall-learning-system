@@ -86,6 +86,7 @@ def append_turn(
     feedback: str = "",
     citation: str = "",
     action: str = "",
+    evidence_dimension: str | None = None,
 ) -> None:
     metadata, body = load_session(path)
     if metadata.get("status") not in {"in-progress", "paused"}:
@@ -94,6 +95,8 @@ def append_turn(
         raise ValueError(f"invalid evaluation: {evaluation}")
     if confidence is not None and confidence not in range(1, 6):
         raise ValueError("confidence must be between 1 and 5")
+    if evidence_dimension is not None and evidence_dimension not in {"recall", "explanation", "application"}:
+        raise ValueError("evidence_dimension must be recall, explanation, or application")
     number = int(metadata.get("question_count", 0)) + 1
     turn = (
         f"\n\n### Turn {number} — {slugify(question)[:60]}\n\n"
@@ -101,6 +104,7 @@ def append_turn(
         f"**My answer:** {answer if answer is not None else '(pending)'}\n\n"
         f"**Confidence before feedback:** {confidence if confidence is not None else 'not recorded'} / 5\n\n"
         f"**Evaluation:** {evaluation}\n\n"
+        f"**Evidence dimension:** {evidence_dimension or 'recall'}\n\n"
         f"**Feedback:** {feedback or 'Pending evaluation.'}\n\n"
         f"**Citation:** {citation or 'Not available.'}\n\n"
         f"**Action:** {action or 'Pending.'}"
