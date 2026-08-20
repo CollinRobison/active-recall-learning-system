@@ -5,6 +5,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -112,6 +113,29 @@ class IngestionTests(unittest.TestCase):
             self.assertTrue(second["conflict_ids"])
             self.assertTrue((workspace / "conflicts/open").glob("*.md"))
             self.assertEqual(confirm_source_metadata(workspace, first["source_id"])["status"], "confirmed")
+
+    def test_docling_is_optional_and_records_converter_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "textbook.pdf"
+            source.write_bytes(b"not a real PDF because the converter is mocked")
+            init_workspace(workspace)
+            with patch("active_recall.ingest._extract_docling", return_value=("# Chapter One\n\nStructured evidence.\n", ["Docling test conversion"])):
+                result = ingest_local(source, workspace, docling="required")
+            record = workspace / "sources" / result["source_id"] / "source.md"
+            metadata, _ = parse(record.read_text(encoding="utf-8"))
+            self.assertEqual(result["extraction_engines"], ["docling"])
+            self.assertEqual(metadata["extraction_engines"], ["docling"])
+            self.assertIn("Structured evidence", (record.parent / "extracted.md").read_text(encoding="utf-8"))
+
+    def test_docling_auto_degrades_to_builtin_extraction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "lesson.docx"
+            source.write_bytes(b"placeholder")
+            init_workspace(workspace)
+            with patch("active_recall.ingest._extract_docling", side_effect=RuntimeError("Docling extraction requires optional dependency 'docling'")), patch("active_recall.ingest._extract_docx", return_value=("# Built in\n\nFallback text.\n", [])):
+                result = ingest_local(source, workspace, docling="auto")
+            self.assertEqual(result["extraction_engines"], ["builtin-docx"])
+            self.assertTrue(any("used built-in extraction" in warning for warning in result["warnings"]))
 
 
 class FakeMilvus:

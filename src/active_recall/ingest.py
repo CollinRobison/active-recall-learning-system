@@ -1,4 +1,4 @@
-"""Safe, dependency-light source ingestion with provenance and optional OCR."""
+"""Safe, dependency-light source ingestion with optional high-fidelity conversion."""
 from __future__ import annotations
 
 import fnmatch
@@ -109,6 +109,22 @@ def _extract_pdf(path: Path, ocr: str) -> tuple[str, list[str]]:
     return "".join(pages), warnings
 
 
+def _extract_docling(path: Path) -> tuple[str, list[str]]:
+    """Convert a layout-sensitive document locally with the optional Docling package."""
+    try:
+        from docling.document_converter import DocumentConverter
+    except ImportError as exc:
+        raise RuntimeError("Docling extraction requires optional dependency 'docling' (install with: python -m pip install -e '.[docling]')") from exc
+    try:
+        document = DocumentConverter().convert(str(path)).document
+        text = document.export_to_markdown()
+    except Exception as exc:  # Docling owns its model/layout errors; retain the cause for an explicit user request.
+        raise RuntimeError(f"Docling extraction failed for {path.name}: {exc}") from exc
+    if not text.strip():
+        raise RuntimeError(f"Docling extraction returned no text for {path.name}")
+    return text, [f"Extracted with optional Docling high-fidelity converter: {path.name}"]
+
+
 def _extract_url(url: str) -> tuple[str, list[str], str]:
     request = urllib.request.Request(url, headers={"User-Agent": "portable-active-recall/0.1"})
     with urllib.request.urlopen(request, timeout=20) as response:
@@ -139,9 +155,10 @@ def _conflicts(workspace: Path, *, location: str, checksum: str, title: str) -> 
     return [conflict_id]
 
 
-def ingest_local(path: Path, workspace: Path, *, title: str | None = None, source_type: str | None = None, ocr: str = "auto", allow_repository: bool = False) -> dict[str, Any]:
+def ingest_local(path: Path, workspace: Path, *, title: str | None = None, source_type: str | None = None, ocr: str = "auto", docling: str = "never", allow_repository: bool = False) -> dict[str, Any]:
     """Ingest a local source. Repository traversal requires explicit opt-in and never follows symlinks."""
     if ocr not in {"auto", "never", "required"}: raise ValueError("ocr must be auto, never, or required")
+    if docling not in {"auto", "never", "required"}: raise ValueError("docling must be auto, never, or required")
     path = path.expanduser().resolve(); workspace = workspace.expanduser().resolve()
     if not path.exists(): raise FileNotFoundError(path)
     patterns = _ignore_patterns(workspace)
@@ -152,14 +169,22 @@ def ingest_local(path: Path, workspace: Path, *, title: str | None = None, sourc
     else: files = sorted(p for p in path.rglob("*") if p.is_file() and not p.is_symlink() and p.suffix.lower() in SUPPORTED | IMAGE_SUFFIXES and not _ignored(p, workspace, patterns) and (not is_repository or not _unsafe_repository_path(p, path)))
     if not files: raise ValueError("no supported safe source files found")
     if path.is_file() and path.suffix.lower() not in SUPPORTED | IMAGE_SUFFIXES: raise ValueError(f"unsupported local source type: {path.suffix}")
-    chunks: list[str] = []; warnings: list[str] = []; checksums: list[str] = []
+    chunks: list[str] = []; warnings: list[str] = []; checksums: list[str] = []; extraction_engines: list[str] = []
     for file in files:
-        checksums.append(sha256_file(file)); suffix = file.suffix.lower()
-        if suffix == ".pdf": text, notes = _extract_pdf(file, ocr)
-        elif suffix == ".docx": text, notes = _extract_docx(file)
-        elif suffix == ".epub": text, notes = _extract_epub(file)
-        elif suffix in IMAGE_SUFFIXES: text, notes = _ocr_image(file, ocr)
-        else: text, notes = file.read_text(encoding="utf-8", errors="replace"), []
+        checksums.append(sha256_file(file)); suffix = file.suffix.lower(); text = ""; notes: list[str] = []
+        use_docling = docling != "never" and suffix in {".pdf", ".docx", ".html"} | IMAGE_SUFFIXES
+        if use_docling:
+            try:
+                text, notes = _extract_docling(file); extraction_engines.append("docling")
+            except RuntimeError as exc:
+                if docling == "required": raise
+                warnings.append(f"Docling unavailable or failed; used built-in extraction for {file.name}: {exc}")
+                use_docling = False
+        if not use_docling and suffix == ".pdf": text, notes = _extract_pdf(file, ocr); extraction_engines.append("builtin-pdf")
+        elif not use_docling and suffix == ".docx": text, notes = _extract_docx(file); extraction_engines.append("builtin-docx")
+        elif not use_docling and suffix == ".epub": text, notes = _extract_epub(file); extraction_engines.append("builtin-epub")
+        elif not use_docling and suffix in IMAGE_SUFFIXES: text, notes = _ocr_image(file, ocr); extraction_engines.append("tesseract-or-none")
+        elif not use_docling: text, notes = file.read_text(encoding="utf-8", errors="replace"), []; extraction_engines.append("builtin-text")
         warnings.extend(notes)
         if not text.strip(): warnings.append(f"empty or unextracted file: {file}"); continue
         relative = file.relative_to(path).as_posix() if path.is_dir() else file.name
@@ -170,12 +195,12 @@ def ingest_local(path: Path, workspace: Path, *, title: str | None = None, sourc
     if source_dir.exists(): raise FileExistsError(f"source already exists: {source_dir}")
     conflict_ids = _conflicts(workspace, location=str(path), checksum=checksum, title=display_title)
     headings = _headings(combined)
-    metadata: dict[str, Any] = {"id": source_id, "kind": "source", "title": display_title, "author": "Unknown", "source_type": source_type or (path.suffix.lower().lstrip(".") if path.is_file() else ("repository" if is_repository else "folder")), "original_location": str(path), "checksum": checksum, "ingested_at": now_iso(), "updated_at": now_iso(), "authority": "unverified", "topic_ids": [], "path_ids": [], "extraction_status": "complete" if combined else "partial", "index_status": "disabled", "metadata_confirmation": "required", "metadata_provenance": {"title": "user-supplied" if title else "derived-from-path", "author": "default-unknown", "source_type": "detected", "original_location": "local-filesystem", "checksum": "sha256-computed"}, "warnings": warnings, "conflict_ids": conflict_ids}
+    metadata: dict[str, Any] = {"id": source_id, "kind": "source", "title": display_title, "author": "Unknown", "source_type": source_type or (path.suffix.lower().lstrip(".") if path.is_file() else ("repository" if is_repository else "folder")), "original_location": str(path), "checksum": checksum, "ingested_at": now_iso(), "updated_at": now_iso(), "authority": "unverified", "topic_ids": [], "path_ids": [], "extraction_status": "complete" if combined else "partial", "extraction_engines": sorted(set(extraction_engines)), "index_status": "disabled", "metadata_confirmation": "required", "metadata_provenance": {"title": "user-supplied" if title else "derived-from-path", "author": "default-unknown", "source_type": "detected", "original_location": "local-filesystem", "checksum": "sha256-computed", "extraction_engines": "detected-during-ingestion"}, "warnings": warnings, "conflict_ids": conflict_ids}
     structure = "# Structure\n\n" + ("\n".join(f"- L{x['line']}: {'#' * x['level']} {x['title']}" for x in headings) or "No Markdown headings detected.") + "\n"
     atomic_write(source_dir / "source.md", render(metadata, f"# {display_title}\n\n## Why this source is being used\n\nAdd the learner's purpose.\n\n## Extraction notes\n\nImported without copying the original file. Metadata confirmation is required before treating derived fields as authoritative.\n"))
     atomic_write(source_dir / "extracted.md", f"# {display_title}\n\n{combined}"); atomic_write(source_dir / "structure.md", structure)
     append_catalog(workspace, "sources.md", "Sources", [f"- **{display_title}** (`{source_id}`) — `{source_dir.relative_to(workspace)}`"])
-    return {"status": metadata["extraction_status"], "source_id": source_id, "files": [str(p.relative_to(workspace)) for p in source_dir.glob("*.md")], "warnings": warnings, "checksum": checksum, "metadata_confirmation": "required", "conflict_ids": conflict_ids}
+    return {"status": metadata["extraction_status"], "source_id": source_id, "files": [str(p.relative_to(workspace)) for p in source_dir.glob("*.md")], "warnings": warnings, "checksum": checksum, "extraction_engines": metadata["extraction_engines"], "metadata_confirmation": "required", "conflict_ids": conflict_ids}
 
 
 def ingest_url(url: str, workspace: Path, *, title: str | None = None) -> dict[str, Any]:

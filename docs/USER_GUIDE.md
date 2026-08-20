@@ -239,7 +239,24 @@ A full rebuild writes a new vector generation, publishes it only after building 
 
 `hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval.
 
-## 10. Use one learning repo on multiple machines
+## 10. Optional high-fidelity Docling conversion
+
+The default extractor is dependency-light and remains the portable baseline. For layout-sensitive PDFs, DOCX, HTML, and images—such as textbooks with columns, tables, formulas, or scans—Docling can produce more structured canonical Markdown.
+
+Install it only on machines where you need it (**Python 3.10+; its models/runtime can require substantial downloads**):
+
+```bash
+python -m pip install -e '.[docling]'
+learning ingest ./textbook.pdf --workspace ~/Learning/machine-learning --docling auto
+```
+
+- `--docling never` (the default) uses the built-in extractor.
+- `--docling auto` tries Docling and records a warning before falling back to the built-in extractor if it is missing or fails.
+- `--docling required` fails rather than accepting a fallback extraction.
+
+The resulting `extracted.md` remains the portable canonical teaching text. `source.md` records `extraction_engines` for provenance; Docling models, caches, and the original file do not need to be committed or copied to another machine.
+
+## 11. Use one learning repo on multiple machines
 
 Put the workspace in a private Git repository. Commit the durable Markdown state and ignore derived local caches:
 
@@ -269,7 +286,7 @@ You can resume because the synced workspace includes `extracted.md`, topics, pat
 
 Do not edit on both machines concurrently. Pull before a study session and commit/push afterward.
 
-## 11. Recovery and troubleshooting
+## 12. Recovery and troubleshooting
 
 | Problem | What to do |
 | --- | --- |
@@ -280,7 +297,7 @@ Do not edit on both machines concurrently. Pull before a study session and commi
 | Ingestion finds a duplicate | Inspect `conflicts/open/` and confirm whether it replaces, duplicates, or remains separate. |
 | Tutor cannot connect to a provider | Use a local `--provider-command`, or provide the explicit network flags required by the CLI. |
 
-## 12. Reference map
+## 13. Reference map
 
 - [Data conventions](../protocol/data-conventions.md)
 - [Safety policy](../protocol/safety-policy.md)

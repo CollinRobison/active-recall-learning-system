@@ -16,7 +16,8 @@ pdf = ["pypdf>=4"]
 ocr = []
 local-embeddings = ["sentence-transformers>=2.6"]
 milvus = ["pymilvus>=2.4"]
-all = ["pypdf>=4", "sentence-transformers>=2.6", "pymilvus>=2.4"]
+docling = ["docling>=2; python_version >= '3.10'"]
+all = ["pypdf>=4", "sentence-transformers>=2.6", "pymilvus>=2.4", "docling>=2; python_version >= '3.10'"]
 
 [project.scripts]
 learning = "active_recall.cli:main"

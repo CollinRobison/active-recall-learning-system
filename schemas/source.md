@@ -18,6 +18,7 @@ authority_scope: []
 topic_ids: []
 path_ids: []
 extraction_status: pending | complete | partial | failed
+extraction_engines: [builtin-pdf | builtin-docx | builtin-epub | builtin-text | tesseract-or-none | docling]
 index_status: disabled | stale | current | failed
 metadata_confidence: {}
 warnings: []

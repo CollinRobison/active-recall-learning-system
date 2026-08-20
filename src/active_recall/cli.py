@@ -38,6 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--type", dest="source_type")
     ingest.add_argument("--allow-network", action="store_true", help="required for URL ingestion")
     ingest.add_argument("--ocr", choices=["auto", "never", "required"], default="auto", help="optional image OCR mode")
+    ingest.add_argument("--docling", choices=["auto", "never", "required"], default="never", help="optional local high-fidelity conversion; auto falls back to built-in extraction")
     ingest.add_argument("--allow-repository", action="store_true", help="required to traverse a Git repository; skips VCS, dependencies, and likely secrets")
 
     source_confirm = sub.add_parser("source-confirm", help="confirm derived source metadata after inspection")
@@ -207,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit("URL ingestion requires --allow-network")
             result = ingest_url(args.input, _workspace(str(args.workspace)), title=args.title)
         else:
-            result = ingest_local(Path(args.input), _workspace(str(args.workspace)), title=args.title, source_type=args.source_type, ocr=args.ocr, allow_repository=args.allow_repository)
+            result = ingest_local(Path(args.input), _workspace(str(args.workspace)), title=args.title, source_type=args.source_type, ocr=args.ocr, docling=args.docling, allow_repository=args.allow_repository)
         print(json.dumps(result, indent=2))
     elif args.command == "source-confirm":
         print(json.dumps(confirm_source_metadata(_workspace(str(args.workspace)), args.source_id, authority=args.authority), indent=2))
