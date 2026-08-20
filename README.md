@@ -27,7 +27,7 @@ The protocol package and a dependency-free runtime are implemented. The runtime 
 
 ## Quick start
 
-1. Install in an environment with Python 3.11+: `python -m pip install -e .`
+1. Install in an environment with Python 3.9+: `python -m pip install -e .`
 2. Create a workspace: `learning init ~/Learning`
 3. Add a local source: `learning ingest ./notes.md --workspace ~/Learning`
 4. Rebuild the fallback index: `learning reindex ~/Learning`

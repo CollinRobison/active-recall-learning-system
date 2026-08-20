@@ -7,7 +7,7 @@ name = "portable-active-recall"
 version = "0.1.0"
 description = "Markdown-first, harness-agnostic active recall learning workspace tools"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 dependencies = []
 
