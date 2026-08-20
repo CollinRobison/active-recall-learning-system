@@ -177,7 +177,36 @@ learning session-status SESSION_PATH completed
 
 A model endpoint is also supported, but it requires `--allow-network`, `--endpoint`, and `--model`. See [`../tools/model-interface.md`](../tools/model-interface.md).
 
-## 7. Review, confusion, and progress
+## 7. Use a compatible agent harness
+
+The CLI is the durable tool layer; it is not intended to be a menu you must operate manually every day. A compatible harness can read this workspace and invoke the same operations on your behalf.
+
+For example, you can ask an agent:
+
+- “Ingest this EPUB into my machine-learning workspace.”
+- “Create a learning path for this book.”
+- “What should I study next?”
+- “I have 20 minutes. Continue where I left off and quiz me.”
+- “Show me the concepts I am confused about.”
+- “Prepare this workspace so I can continue on my other machine.”
+
+A well-configured harness should identify the workspace, inspect due reviews/open confusion/path order, retrieve only source-grounded evidence, ask one question at a time, and persist the resulting answers, evaluations, review scheduling, and confusion state. See [`../adapters/`](../adapters/) for harness-specific installation and invocation notes.
+
+### Actions that require your explicit confirmation
+
+The protocol deliberately requires a preview and/or confirmation before an agent makes a consequential canonical change. Expect it to ask before it:
+
+- changes canonical source metadata or authority;
+- changes topic/path relationships or marks a topic complete;
+- resolves or deletes a confusion record;
+- decides how to handle a duplicate-source conflict;
+- ingests a URL or repository;
+- uses outside/web knowledge; or
+- commits and pushes your learning workspace to Git.
+
+You can still use any individual CLI command directly when you want to inspect or control an operation precisely.
+
+## 8. Review, confusion, and progress
 
 Tutor answer evaluation persists evidence by recall, explanation, and application; it updates a per-topic current due queue and appends review history. Incorrect or incomplete answers can create or merge stable confusion records.
 
@@ -189,7 +218,7 @@ learning recommend ~/Learning
 
 Read `reviews/due.md` for the current queue, `reviews/history.md` for history, and `confusion/open/` for the concepts needing remediation.
 
-## 8. Optional semantic vector search
+## 9. Optional semantic vector search
 
 Milvus Lite is a local, disposable retrieval cache. It stores vector embeddings plus citation metadata for chunks from `extracted.md`; it does not own learning state or original source material.
 
@@ -210,7 +239,7 @@ A full rebuild writes a new vector generation, publishes it only after building 
 
 `hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval.
 
-## 9. Use one learning repo on multiple machines
+## 10. Use one learning repo on multiple machines
 
 Put the workspace in a private Git repository. Commit the durable Markdown state and ignore derived local caches:
 
@@ -240,7 +269,7 @@ You can resume because the synced workspace includes `extracted.md`, topics, pat
 
 Do not edit on both machines concurrently. Pull before a study session and commit/push afterward.
 
-## 10. Recovery and troubleshooting
+## 11. Recovery and troubleshooting
 
 | Problem | What to do |
 | --- | --- |
@@ -251,7 +280,7 @@ Do not edit on both machines concurrently. Pull before a study session and commi
 | Ingestion finds a duplicate | Inspect `conflicts/open/` and confirm whether it replaces, duplicates, or remains separate. |
 | Tutor cannot connect to a provider | Use a local `--provider-command`, or provide the explicit network flags required by the CLI. |
 
-## 11. Reference map
+## 12. Reference map
 
 - [Data conventions](../protocol/data-conventions.md)
 - [Safety policy](../protocol/safety-policy.md)
