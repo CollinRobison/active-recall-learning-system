@@ -12,7 +12,8 @@ from active_recall.embeddings import CommandEmbeddingProvider, HashEmbeddingProv
 from active_recall.model import CommandModelProvider
 from active_recall.frontmatter import parse, render
 from active_recall.index import query_manifest, rebuild_manifest
-from active_recall.ingest import ingest_local
+from active_recall.ingest import confirm_source_metadata, ingest_local
+from active_recall.milvus_index import MilvusLiteIndex
 from active_recall.schedule import next_review_at
 from active_recall.session import append_turn, load_session, start_session, update_status
 from active_recall.tutor import Tutor
@@ -92,6 +93,59 @@ class IngestionTests(unittest.TestCase):
             extracted = (workspace / "sources" / result["source_id"] / "extracted.md").read_text(encoding="utf-8")
             self.assertIn("keep", extracted)
             self.assertNotIn("private", extracted)
+
+    def test_repository_requires_opt_in_and_metadata_conflicts_are_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; repository = root / "repo"
+            (repository / ".git").mkdir(parents=True); (repository / "node_modules").mkdir()
+            (repository / "main.py").write_text("# safe\nvalue = 1\n", encoding="utf-8")
+            (repository / ".env").write_text("TOKEN=nope", encoding="utf-8")
+            (repository / "node_modules" / "bad.js").write_text("secret", encoding="utf-8")
+            init_workspace(workspace)
+            with self.assertRaises(ValueError): ingest_local(repository, workspace)
+            first = ingest_local(repository, workspace, allow_repository=True)
+            self.assertNotIn("TOKEN", (workspace / "sources" / first["source_id"] / "extracted.md").read_text(encoding="utf-8"))
+            second = ingest_local(repository, workspace, allow_repository=True, title="Repo copy")
+            self.assertTrue(second["conflict_ids"])
+            self.assertTrue((workspace / "conflicts/open").glob("*.md"))
+            self.assertEqual(confirm_source_metadata(workspace, first["source_id"])["status"], "confirmed")
+
+
+class FakeMilvus:
+    def __init__(self): self.collections = {}; self.calls = []
+    def has_collection(self, name): return name in self.collections
+    def create_collection(self, collection_name, **kwargs): self.collections[collection_name] = {}; self.calls.append(("create", collection_name))
+    def insert(self, collection_name, data): self.collections[collection_name].update({row["record_id"]: row for row in data}); self.calls.append(("insert", collection_name, len(data)))
+    def upsert(self, collection_name, data): self.collections[collection_name].update({row["record_id"]: row for row in data}); self.calls.append(("upsert", collection_name, len(data)))
+    def delete(self, collection_name, ids):
+        for item in ids: self.collections[collection_name].pop(item, None)
+        self.calls.append(("delete", collection_name, tuple(ids)))
+    def search(self, collection_name, data, limit, filter, output_fields):
+        rows = list(self.collections[collection_name].values())
+        if filter:
+            source = filter.split('"')[1]; rows = [row for row in rows if row["source_id"] == source]
+        return [[{"id": row["record_id"], "distance": 1.0, "entity": {key: row[key] for key in output_fields}} for row in rows[:limit]]]
+
+
+class MilvusBoundaryTests(unittest.TestCase):
+    def test_generation_incremental_updates_and_filters_without_pymilvus(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "workspace"; source = root / "lesson.md"
+            source.write_text("# One\nalpha retrieval\n", encoding="utf-8"); init_workspace(workspace)
+            source_id = ingest_local(source, workspace)["source_id"]
+            source_record = next(path for path, metadata, _ in iter_records(workspace, {"source"}) if metadata["id"] == source_id)
+            metadata, body = parse(source_record.read_text(encoding="utf-8")); metadata["topic_ids"] = ["topic-one"]; metadata["path_ids"] = ["path-one"]; source_record.write_text(render(metadata, body), encoding="utf-8")
+            fake = FakeMilvus(); index = MilvusLiteIndex(workspace, client=fake); provider = HashEmbeddingProvider(8)
+            built = index.rebuild(provider); self.assertEqual(built["generation"], 1); self.assertTrue(built["collection"].endswith("_g1"))
+            self.assertEqual(len(index.query(provider, "retrieval", source_id=source_id, topic_id="topic-one", path_id="path-one")), 1)
+            (workspace / "sources" / source_id / "extracted.md").write_text("# One\nbeta retrieval\n", encoding="utf-8")
+            updated = index.incremental(provider)
+            self.assertEqual(updated["incremental"]["upserted"], 1)
+            self.assertEqual(updated["generation"], 1)
+            (workspace / "sources" / source_id / "extracted.md").unlink()
+            stale = index.incremental(provider)
+            self.assertEqual(stale["incremental"]["removed"], 1)
+            self.assertTrue(any(call[0] == "delete" for call in fake.calls))
 
 
 class ConfusionTests(unittest.TestCase):

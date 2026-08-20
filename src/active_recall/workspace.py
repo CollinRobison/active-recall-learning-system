@@ -20,6 +20,8 @@ WORKSPACE_DIRS = (
     "sessions",
     "confusion/open",
     "confusion/resolved",
+    "conflicts/open",
+    "conflicts/resolved",
     "reviews",
     "progress/snapshots",
     "inbox",

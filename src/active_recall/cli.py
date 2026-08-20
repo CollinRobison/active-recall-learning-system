@@ -9,7 +9,7 @@ from pathlib import Path
 from .citations import validate_citation
 from .embeddings import CommandEmbeddingProvider, HashEmbeddingProvider, SentenceTransformerProvider
 from .index import query_manifest, rebuild_manifest
-from .ingest import ingest_local, ingest_url
+from .ingest import confirm_source_metadata, ingest_local, ingest_url
 from .milvus_index import MilvusLiteIndex, milvus_available, vector_status
 from .model import CommandModelProvider, OpenAICompatibleProvider
 from .progress import summarize
@@ -37,6 +37,13 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--title")
     ingest.add_argument("--type", dest="source_type")
     ingest.add_argument("--allow-network", action="store_true", help="required for URL ingestion")
+    ingest.add_argument("--ocr", choices=["auto", "never", "required"], default="auto", help="optional image OCR mode")
+    ingest.add_argument("--allow-repository", action="store_true", help="required to traverse a Git repository; skips VCS, dependencies, and likely secrets")
+
+    source_confirm = sub.add_parser("source-confirm", help="confirm derived source metadata after inspection")
+    source_confirm.add_argument("workspace", type=Path)
+    source_confirm.add_argument("source_id")
+    source_confirm.add_argument("--authority", choices=["unverified", "user-marked", "primary", "secondary"])
 
     catalog = sub.add_parser("list", help="list available topics, sources, paths, and open confusion")
     catalog.add_argument("workspace", type=Path)
@@ -155,11 +162,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     vector_reindex = sub.add_parser("vector-reindex", help="build the optional Milvus Lite vector collection")
     add_vector_options(vector_reindex)
+    vector_reindex.add_argument("--incremental", action="store_true", help="upsert changed chunks into the current published generation")
 
     vector_query = sub.add_parser("vector-query", help="query the optional Milvus Lite vector collection")
     add_vector_options(vector_query)
     vector_query.add_argument("text")
     vector_query.add_argument("--source")
+    vector_query.add_argument("--topic")
+    vector_query.add_argument("--path")
     vector_query.add_argument("--limit", type=int, default=5)
     return parser
 
@@ -197,8 +207,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit("URL ingestion requires --allow-network")
             result = ingest_url(args.input, _workspace(str(args.workspace)), title=args.title)
         else:
-            result = ingest_local(Path(args.input), _workspace(str(args.workspace)), title=args.title, source_type=args.source_type)
+            result = ingest_local(Path(args.input), _workspace(str(args.workspace)), title=args.title, source_type=args.source_type, ocr=args.ocr, allow_repository=args.allow_repository)
         print(json.dumps(result, indent=2))
+    elif args.command == "source-confirm":
+        print(json.dumps(confirm_source_metadata(_workspace(str(args.workspace)), args.source_id, authority=args.authority), indent=2))
     elif args.command == "list":
         records = []
         for path, metadata, _ in iter_records(_workspace(str(args.workspace))):
@@ -255,13 +267,14 @@ def main(argv: list[str] | None = None) -> int:
         if not milvus_available():
             print(json.dumps(vector_status(_workspace(str(args.workspace))), indent=2))
         else:
-            print(json.dumps(MilvusLiteIndex(_workspace(str(args.workspace))).rebuild(_embedding_provider(args)), indent=2))
+            index = MilvusLiteIndex(_workspace(str(args.workspace)))
+            print(json.dumps(index.incremental(_embedding_provider(args)) if args.incremental else index.rebuild(_embedding_provider(args)), indent=2))
     elif args.command == "vector-query":
         if not milvus_available():
             print(json.dumps(vector_status(_workspace(str(args.workspace))), indent=2))
         else:
             index = MilvusLiteIndex(_workspace(str(args.workspace)))
-            print(json.dumps(index.query(_embedding_provider(args), args.text, source_id=args.source, limit=args.limit), indent=2))
+            print(json.dumps(index.query(_embedding_provider(args), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
     return 0
 
 
