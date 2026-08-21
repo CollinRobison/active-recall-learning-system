@@ -77,6 +77,8 @@ class WorkspaceTests(unittest.TestCase):
             self.assertIn("Queryable workspace records", html)
             self.assertIn("Explore all", html)
             self.assertIn("All record types", html)
+            self.assertIn("Charts scoped to", html)
+            self.assertIn("function scoped(scope)", html)
             self.assertIn("const DATA=", html)
             self.assertEqual(dashboard_data(workspace)["summary"]["topics"], 1)
             self.assertEqual(dashboard_data(workspace)["summary"]["topic_completion_percentage"], 0)
