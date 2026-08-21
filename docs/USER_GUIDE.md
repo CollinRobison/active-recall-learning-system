@@ -230,7 +230,7 @@ Open `~/Learning/machine-learning/dashboard.html` directly in a browser. No serv
 
 Completion is deliberately transparent: **topic completion %** is `topics marked completed ÷ all topics`, and a path's percentage is `completed assigned topics ÷ assigned topics`. It is a workflow-progress measure, not an inferred mastery score.
 
-The dashboard is derived output, not canonical learning state. Regenerate it after a study session or record edit. A compatible agent should create it when it is missing or refresh it when you ask for current dashboard information; see [`../skills/learning-dashboard.md`](../skills/learning-dashboard.md).
+The dashboard is derived output, not canonical learning state. Every successful canonical data-creation or data-update command automatically creates or refreshes it. If you edit canonical Markdown outside the CLI (for example in an editor or an agent integration), run `learning dashboard ~/Learning/machine-learning` afterward. A compatible agent has the same obligation; see [`../skills/learning-dashboard.md`](../skills/learning-dashboard.md).
 
 ## 10. Optional semantic vector search
 

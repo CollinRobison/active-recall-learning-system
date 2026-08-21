@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .citations import validate_citation
@@ -18,11 +19,27 @@ from .orchestrator import TutorSession
 from .catalog import create_path, create_topic, recommend, update_topic
 from .dashboard import generate_dashboard
 from .session import append_turn, start_session, update_status
-from .workspace import init_workspace, iter_records
+from .workspace import find_workspace, init_workspace, iter_records
 
 
 def _workspace(value: str) -> Path:
     return Path(value).expanduser().resolve()
+
+
+_CANONICAL_MUTATION_COMMANDS = {
+    "init", "ingest", "source-confirm", "topic-create", "topic-edit", "path-create",
+    "session-start", "session-turn", "session-status", "tutor-session-question",
+    "tutor-session-answer", "tutor-session-hint", "tutor-session-update",
+}
+
+
+def _refresh_dashboard_after_mutation(args: argparse.Namespace) -> None:
+    """Keep the derived dashboard current without invalidating a successful write."""
+    try:
+        root = _workspace(str(args.workspace)) if hasattr(args, "workspace") else find_workspace(Path(args.session))
+        generate_dashboard(root)
+    except Exception as exc:  # Dashboard output is derived; preserve canonical-write success.
+        print(f"warning: learning data was saved, but dashboard regeneration failed: {exc}", file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -306,6 +323,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             index = MilvusLiteIndex(_workspace(str(args.workspace)))
             print(json.dumps(index.query(_embedding_provider(args), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
+    if args.command in _CANONICAL_MUTATION_COMMANDS:
+        _refresh_dashboard_after_mutation(args)
     return 0
 
 

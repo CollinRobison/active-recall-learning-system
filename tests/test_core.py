@@ -23,6 +23,7 @@ from active_recall.session import append_turn, load_session, start_session, upda
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
 from active_recall.catalog import create_path, create_topic, recommend, update_topic
+from active_recall.cli import main as cli_main
 from active_recall.dashboard import dashboard_data, generate_dashboard
 from active_recall.progress import summarize
 from active_recall.reviews import record_review
@@ -86,6 +87,15 @@ class WorkspaceTests(unittest.TestCase):
             snapshot = dashboard_data(workspace)
             self.assertEqual(snapshot["summary"]["topic_completion_percentage"], 100)
             self.assertEqual(snapshot["path_completion"][0]["percentage"], 100)
+
+    def test_cli_mutations_always_regenerate_dashboard(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "learning"
+            self.assertEqual(cli_main(["init", str(workspace)]), 0)
+            dashboard = workspace / "dashboard.html"
+            self.assertTrue(dashboard.exists())
+            self.assertEqual(cli_main(["topic-create", str(workspace), "Auto dashboard topic"]), 0)
+            self.assertIn("Auto dashboard topic", dashboard.read_text(encoding="utf-8"))
 
 
 class IngestionTests(unittest.TestCase):

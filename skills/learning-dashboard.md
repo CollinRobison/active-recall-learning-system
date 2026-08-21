@@ -10,15 +10,16 @@ Generate a read-only HTML snapshot of a learning workspace when the learner asks
 ## Agent workflow
 
 1. Identify the learning workspace from the request or configured context.
-2. Check whether `<workspace>/dashboard.html` exists.
-3. If it is missing, create it immediately:
+2. CLI-driven canonical creation/update actions automatically create or refresh `<workspace>/dashboard.html` after a successful write. Do not run a second dashboard command merely because an ordinary CLI action completed.
+3. **Direct-write requirement:** if you bypass the CLI and create, edit, move, or resolve canonical source/topic/path/session/review/progress/confusion records yourself, immediately run:
 
    ```bash
    learning dashboard WORKSPACE
    ```
 
-4. If it already exists but the learner asks for current information, regenerate it with the same command. This reads canonical Markdown records and overwrites only `dashboard.html`; it does not change sources, topics, paths, sessions, reviews, or confusion records.
-5. Tell the learner the exact local path and explain that they can open it directly in a browser. Do not claim that it live-updates: regenerate it after new study activity.
+   Do this after the canonical write is successful. Do not treat dashboard-generation failure as a reason to undo the learning-state write; report the dashboard failure separately.
+4. If the learner asks for current information after external/manual edits, regenerate with the same command. It reads canonical Markdown records and overwrites only `dashboard.html`.
+5. Tell the learner the exact local path and explain that the static HTML is automatically refreshed by CLI actions but requires regeneration after external direct edits; it does not live-watch files.
 
 ## What it shows
 
