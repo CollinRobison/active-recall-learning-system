@@ -226,7 +226,9 @@ Generate a self-contained, read-only HTML snapshot for any learning workspace:
 learning dashboard ~/Learning/machine-learning
 ```
 
-Open `~/Learning/machine-learning/dashboard.html` directly in a browser. No server, database, account, or network connection is needed. It shows sources, topics, paths, sessions, question/evaluation evidence, open confusion, extraction provenance, associations, and record locations. Use the navigation, status filters, and free-text search to inspect the workspace.
+Open `~/Learning/machine-learning/dashboard.html` directly in a browser. No server, database, account, or network connection is needed. It shows sources, topics, paths, sessions, question/evaluation evidence, open confusion, extraction provenance, associations, and record locations. The overview includes interactive completion, evidence, path-progress, and study-activity charts; click a metric, chart action, or path to open the related queryable records. Use the navigation, status filters, and free-text search to inspect the workspace.
+
+Completion is deliberately transparent: **topic completion %** is `topics marked completed ÷ all topics`, and a path's percentage is `completed assigned topics ÷ assigned topics`. It is a workflow-progress measure, not an inferred mastery score.
 
 The dashboard is derived output, not canonical learning state. Regenerate it after a study session or record edit. A compatible agent should create it when it is missing or refresh it when you ask for current dashboard information; see [`../skills/learning-dashboard.md`](../skills/learning-dashboard.md).
 

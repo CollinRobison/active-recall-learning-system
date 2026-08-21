@@ -22,8 +22,8 @@ Generate a read-only HTML snapshot of a learning workspace when the learner asks
 
 ## What it shows
 
-- source, topic, path, session, question, and open-confusion counts;
-- evaluation evidence and calibration summary;
+- source, topic, path, session, question, open-confusion, and transparent completion-percent counts;
+- interactive evaluation, per-path completion, and study-activity charts;
 - queryable/filterable topics, paths, content records, open/resolved confusion records, and sessions;
 - source/topic/path associations, prerequisites, extraction provenance, and record paths;
 - a compact copyable progress summary.

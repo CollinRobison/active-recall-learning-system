@@ -77,6 +77,11 @@ class WorkspaceTests(unittest.TestCase):
             self.assertIn("Queryable workspace records", html)
             self.assertIn("const DATA=", html)
             self.assertEqual(dashboard_data(workspace)["summary"]["topics"], 1)
+            self.assertEqual(dashboard_data(workspace)["summary"]["topic_completion_percentage"], 0)
+            update_topic(workspace, topic_id, status="completed", confirm=True)
+            snapshot = dashboard_data(workspace)
+            self.assertEqual(snapshot["summary"]["topic_completion_percentage"], 100)
+            self.assertEqual(snapshot["path_completion"][0]["percentage"], 100)
 
 
 class IngestionTests(unittest.TestCase):
