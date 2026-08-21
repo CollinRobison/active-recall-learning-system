@@ -206,6 +206,22 @@ The protocol deliberately requires a preview and/or confirmation before an agent
 
 You can still use any individual CLI command directly when you want to inspect or control an operation precisely.
 
+### Remove learning content without breaking the remaining curriculum
+
+Use `remove` with a source, topic, or path ID. It is deliberately a two-step destructive operation:
+
+```bash
+# First inspect the exact deletion/pruning plan.
+learning remove ~/Learning source-20260820-linear-algebra-1234abcd
+
+# Re-run only after you approve that plan.
+learning remove ~/Learning source-20260820-linear-algebra-1234abcd --confirm
+```
+
+Removing a **source** deletes its canonical extracted content and removes it from topic/path associations. A topic is removed only when that source was its last associated source. A path is retained when it still has another topic or source; its removed pieces are simply pruned. A path that becomes empty is removed. Related single-scope sessions, confusion items, and review entries are removed; mixed-scope session associations are pruned instead. Removing a topic or path follows the same relationship-aware rule. The original file/book outside the workspace is never deleted.
+
+The confirmed operation rebuilds the lexical index, clears the optional local vector cache (run `learning vector-reindex` if you use vectors), and automatically refreshes `dashboard.html`.
+
 ## 8. Review, confusion, and progress
 
 Tutor answer evaluation persists evidence by recall, explanation, and application; it updates a per-topic current due queue and appends review history. Incorrect or incomplete answers can create or merge stable confusion records.

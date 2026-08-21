@@ -18,6 +18,7 @@ from .tutor import Tutor
 from .orchestrator import TutorSession
 from .catalog import create_path, create_topic, recommend, update_topic
 from .dashboard import generate_dashboard
+from .removal import remove_record
 from .session import append_turn, start_session, update_status
 from .workspace import find_workspace, init_workspace, iter_records
 
@@ -30,6 +31,7 @@ _CANONICAL_MUTATION_COMMANDS = {
     "init", "ingest", "source-confirm", "topic-create", "topic-edit", "path-create",
     "session-start", "session-turn", "session-status", "tutor-session-question",
     "tutor-session-answer", "tutor-session-hint", "tutor-session-update",
+    "remove",
 }
 
 
@@ -82,6 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
     path_create.add_argument("workspace", type=Path); path_create.add_argument("name")
     path_create.add_argument("--topic", action="append", required=True); path_create.add_argument("--source", action="append")
     path_create.add_argument("--prerequisite", action="append"); path_create.add_argument("--target-outcome", default="")
+
+    remove = sub.add_parser("remove", help="preview or confirmed-remove one source, topic, or path with orphaned artifacts")
+    remove.add_argument("workspace", type=Path); remove.add_argument("record_id")
+    remove.add_argument("--confirm", action="store_true", help="permanently apply the relationship-aware removal plan")
 
     recommend_command = sub.add_parser("recommend", help="rank due confusion, path order, and active topics")
     recommend_command.add_argument("workspace", type=Path); recommend_command.add_argument("--limit", type=int, default=5)
@@ -269,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(update_topic(_workspace(str(args.workspace)), args.topic_id, source_ids=args.source, prerequisites=args.prerequisite, related_topics=args.related, path_ids=args.path, status=args.status, confirm=args.confirm), indent=2))
     elif args.command == "path-create":
         print(create_path(_workspace(str(args.workspace)), name=args.name, topic_ids=args.topic, source_ids=args.source, prerequisites=args.prerequisite, target_outcome=args.target_outcome))
+    elif args.command == "remove":
+        print(json.dumps(remove_record(_workspace(str(args.workspace)), args.record_id, confirm=args.confirm), indent=2))
     elif args.command == "recommend":
         print(json.dumps(recommend(_workspace(str(args.workspace)), limit=args.limit), indent=2))
     elif args.command == "session-start":
@@ -323,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             index = MilvusLiteIndex(_workspace(str(args.workspace)))
             print(json.dumps(index.query(_embedding_provider(args), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
-    if args.command in _CANONICAL_MUTATION_COMMANDS:
+    if args.command in _CANONICAL_MUTATION_COMMANDS and not (args.command == "remove" and not args.confirm):
         _refresh_dashboard_after_mutation(args)
     return 0
 

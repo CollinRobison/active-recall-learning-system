@@ -21,3 +21,6 @@ Keep partial extraction marked `partial`; never claim citations are valid when l
 
 ## Repository safety
 Repository traversal requires explicit opt-in. Never follow symlinks; exclude VCS directories, dependency/build/cache folders, `.env` variants, and common credential/key filenames. The user can extend exclusions with `.learningignore`.
+
+## Removing an ingested source
+Use [`remove-learning-records.md`](remove-learning-records.md), never direct filesystem deletion. Preview `learning remove WORKSPACE SOURCE_ID`, obtain explicit approval, then use `--confirm`; this prunes only source-dependent curriculum artifacts and preserves unrelated path content.

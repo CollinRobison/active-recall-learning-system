@@ -19,3 +19,7 @@ Use readable sections for topics, sources, paths, due work, open confusion, and 
 Treat inferred relationships as suggestions. Ask before creating or changing catalog structure. Preview a canonical topic edit (relationships or lifecycle status) before applying it; only write after explicit confirmation. The runtime exposes this as `learning topic-edit WORKSPACE TOPIC_ID ...` and requires `--confirm` to write. It validates every referenced ID, prevents prerequisite cycles, and keeps source `topic_ids` reciprocal with the topic's `source_ids`.
 
 Creating a topic or path from explicit user input is a confirmed creation. Do not overwrite human notes while editing catalog metadata.
+
+## Removal
+
+Use [`remove-learning-records.md`](remove-learning-records.md) for destructive curriculum changes. Agents must preview `learning remove WORKSPACE RECORD_ID`, obtain explicit approval of the impact plan, and only then use `--confirm`; do not directly unlink catalog records because reciprocal associations, dependent artifacts, indexes, and the dashboard need coordinated cleanup.
