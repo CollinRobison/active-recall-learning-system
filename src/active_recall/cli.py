@@ -16,6 +16,7 @@ from .progress import summarize
 from .tutor import Tutor
 from .orchestrator import TutorSession
 from .catalog import create_path, create_topic, recommend, update_topic
+from .dashboard import generate_dashboard
 from .session import append_turn, start_session, update_status
 from .workspace import init_workspace, iter_records
 
@@ -104,6 +105,10 @@ def build_parser() -> argparse.ArgumentParser:
     progress = sub.add_parser("progress", help="summarize persisted evidence")
     progress.add_argument("workspace", type=Path)
     progress.add_argument("--topic")
+
+    dashboard = sub.add_parser("dashboard", help="generate a standalone, queryable HTML workspace dashboard")
+    dashboard.add_argument("workspace", type=Path)
+    dashboard.add_argument("--output", type=Path, help="defaults to WORKSPACE/dashboard.html")
 
     citation = sub.add_parser("validate-citation", help="verify a citation refers to a known source")
     citation.add_argument("workspace", type=Path)
@@ -264,6 +269,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(query_manifest(_workspace(str(args.workspace)), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
     elif args.command == "progress":
         print(json.dumps(summarize(_workspace(str(args.workspace)), topic_id=args.topic), indent=2))
+    elif args.command == "dashboard":
+        print(json.dumps(generate_dashboard(_workspace(str(args.workspace)), output=args.output), indent=2))
     elif args.command == "validate-citation":
         print(json.dumps(validate_citation(_workspace(str(args.workspace)), args.text), indent=2))
     elif args.command == "tutor-question":

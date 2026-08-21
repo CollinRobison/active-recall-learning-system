@@ -218,7 +218,19 @@ learning recommend ~/Learning
 
 Read `reviews/due.md` for the current queue, `reviews/history.md` for history, and `confusion/open/` for the concepts needing remediation.
 
-## 9. Optional semantic vector search
+## 9. Local dashboard
+
+Generate a self-contained, read-only HTML snapshot for any learning workspace:
+
+```bash
+learning dashboard ~/Learning/machine-learning
+```
+
+Open `~/Learning/machine-learning/dashboard.html` directly in a browser. No server, database, account, or network connection is needed. It shows sources, topics, paths, sessions, question/evaluation evidence, open confusion, extraction provenance, associations, and record locations. Use the navigation, status filters, and free-text search to inspect the workspace.
+
+The dashboard is derived output, not canonical learning state. Regenerate it after a study session or record edit. A compatible agent should create it when it is missing or refresh it when you ask for current dashboard information; see [`../skills/learning-dashboard.md`](../skills/learning-dashboard.md).
+
+## 10. Optional semantic vector search
 
 Milvus Lite is a local, disposable retrieval cache. It stores vector embeddings plus citation metadata for chunks from `extracted.md`; it does not own learning state or original source material.
 
@@ -239,7 +251,7 @@ A full rebuild writes a new vector generation, publishes it only after building 
 
 `hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval. Tutor and tutor-session commands use `--retrieval-engine auto` by default: they select a compatible current Milvus index first, then safely fall back to lexical retrieval if the vector cache is unavailable, stale, mismatched, fails, or has no evidence. Use `--retrieval-engine lexical` to force the portable baseline.
 
-## 10. Optional high-fidelity Docling conversion
+## 11. Optional high-fidelity Docling conversion
 
 The default extractor is dependency-light and remains the portable baseline. For layout-sensitive PDFs, DOCX, HTML, and images—such as textbooks with columns, tables, formulas, or scans—Docling can produce more structured canonical Markdown.
 
@@ -256,7 +268,7 @@ learning ingest ./textbook.pdf --workspace ~/Learning/machine-learning --docling
 
 The resulting `extracted.md` remains the portable canonical teaching text. `source.md` records `extraction_engines` for provenance; Docling models, caches, and the original file do not need to be committed or copied to another machine.
 
-## 11. Use one learning repo on multiple machines
+## 12. Use one learning repo on multiple machines
 
 Put the workspace in a private Git repository. Commit the durable Markdown state and ignore derived local caches:
 
@@ -286,7 +298,7 @@ You can resume because the synced workspace includes `extracted.md`, topics, pat
 
 Do not edit on both machines concurrently. Pull before a study session and commit/push afterward.
 
-## 12. Recovery and troubleshooting
+## 13. Recovery and troubleshooting
 
 | Problem | What to do |
 | --- | --- |
@@ -297,7 +309,7 @@ Do not edit on both machines concurrently. Pull before a study session and commi
 | Ingestion finds a duplicate | Inspect `conflicts/open/` and confirm whether it replaces, duplicates, or remains separate. |
 | Tutor cannot connect to a provider | Use a local `--provider-command`, or provide the explicit network flags required by the CLI. |
 
-## 13. Reference map
+## 14. Reference map
 
 - [Data conventions](../protocol/data-conventions.md)
 - [Safety policy](../protocol/safety-policy.md)

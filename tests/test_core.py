@@ -23,6 +23,7 @@ from active_recall.session import append_turn, load_session, start_session, upda
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
 from active_recall.catalog import create_path, create_topic, recommend, update_topic
+from active_recall.dashboard import dashboard_data, generate_dashboard
 from active_recall.progress import summarize
 from active_recall.reviews import record_review
 from active_recall.workspace import init_workspace, iter_records
@@ -59,6 +60,23 @@ class WorkspaceTests(unittest.TestCase):
             init_workspace(root)
             self.assertEqual(readme.read_text(encoding="utf-8"), "custom\n")
             self.assertTrue((root / "index/manifest.jsonl").exists())
+
+    def test_dashboard_is_a_self_contained_read_only_workspace_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "learning"; source = root / "book.md"
+            source.write_text("# Dashboard evidence\n\nUseful learning text.\n", encoding="utf-8")
+            init_workspace(workspace); source_id = ingest_local(source, workspace)["source_id"]
+            topic = create_topic(workspace, name="Dashboard topic", source_ids=[source_id])
+            topic_id = parse(topic.read_text(encoding="utf-8"))[0]["id"]
+            create_path(workspace, name="Dashboard path", topic_ids=[topic_id], source_ids=[source_id])
+            result = generate_dashboard(workspace)
+            page = Path(result["dashboard"])
+            html = page.read_text(encoding="utf-8")
+            self.assertEqual(result["status"], "generated")
+            self.assertIn("Dashboard topic", html)
+            self.assertIn("Queryable workspace records", html)
+            self.assertIn("const DATA=", html)
+            self.assertEqual(dashboard_data(workspace)["summary"]["topics"], 1)
 
 
 class IngestionTests(unittest.TestCase):

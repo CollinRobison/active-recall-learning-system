@@ -36,7 +36,7 @@ learning-workspace/
 
 ## Portable Git workspaces
 
-A workspace may be a private Git repository shared sequentially between machines. Commit the canonical Markdown records (`sources/`, `topics/`, `paths/`, `sessions/`, `reviews/`, `confusion/`, and `progress/`), then pull before starting work on another machine. Ignore `index/milvus/`, `index/vector-status.json`, and `index/manifest.jsonl`: they are local derived caches and can be rebuilt from `extracted.md` after a pull. A source's `original_location` may be unavailable on the second machine; that does not prevent retrieval, tutoring, or reindexing because `extracted.md` is the portable teaching record. Keep original PDFs/EPUBs separately if they are not committed.
+A workspace may be a private Git repository shared sequentially between machines. Commit the canonical Markdown records (`sources/`, `topics/`, `paths/`, `sessions/`, `reviews/`, `confusion/`, and `progress/`), then pull before starting work on another machine. Ignore `index/milvus/`, `index/vector-status.json`, `index/manifest.jsonl`, and generated `dashboard.html`: they are local derived caches/snapshots and can be rebuilt from `extracted.md` after a pull. A source's `original_location` may be unavailable on the second machine; that does not prevent retrieval, tutoring, or reindexing because `extracted.md` is the portable teaching record. Keep original PDFs/EPUBs separately if they are not committed.
 
 ## Frontmatter
 
