@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .citations import validate_citation
@@ -16,12 +17,31 @@ from .progress import summarize
 from .tutor import Tutor
 from .orchestrator import TutorSession
 from .catalog import create_path, create_topic, recommend, update_topic
+from .dashboard import generate_dashboard
+from .removal import remove_record
 from .session import append_turn, start_session, update_status
-from .workspace import init_workspace, iter_records
+from .workspace import find_workspace, init_workspace, iter_records
 
 
 def _workspace(value: str) -> Path:
     return Path(value).expanduser().resolve()
+
+
+_CANONICAL_MUTATION_COMMANDS = {
+    "init", "ingest", "source-confirm", "topic-create", "topic-edit", "path-create",
+    "session-start", "session-turn", "session-status", "tutor-session-question",
+    "tutor-session-answer", "tutor-session-hint", "tutor-session-update",
+    "remove",
+}
+
+
+def _refresh_dashboard_after_mutation(args: argparse.Namespace) -> None:
+    """Keep the derived dashboard current without invalidating a successful write."""
+    try:
+        root = _workspace(str(args.workspace)) if hasattr(args, "workspace") else find_workspace(Path(args.session))
+        generate_dashboard(root)
+    except Exception as exc:  # Dashboard output is derived; preserve canonical-write success.
+        print(f"warning: learning data was saved, but dashboard regeneration failed: {exc}", file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -65,6 +85,10 @@ def build_parser() -> argparse.ArgumentParser:
     path_create.add_argument("--topic", action="append", required=True); path_create.add_argument("--source", action="append")
     path_create.add_argument("--prerequisite", action="append"); path_create.add_argument("--target-outcome", default="")
 
+    remove = sub.add_parser("remove", help="preview or confirmed-remove one source, topic, or path with orphaned artifacts")
+    remove.add_argument("workspace", type=Path); remove.add_argument("record_id")
+    remove.add_argument("--confirm", action="store_true", help="permanently apply the relationship-aware removal plan")
+
     recommend_command = sub.add_parser("recommend", help="rank due confusion, path order, and active topics")
     recommend_command.add_argument("workspace", type=Path); recommend_command.add_argument("--limit", type=int, default=5)
     start = sub.add_parser("session-start", help="create a resumable session")
@@ -104,6 +128,10 @@ def build_parser() -> argparse.ArgumentParser:
     progress = sub.add_parser("progress", help="summarize persisted evidence")
     progress.add_argument("workspace", type=Path)
     progress.add_argument("--topic")
+
+    dashboard = sub.add_parser("dashboard", help="generate a standalone, queryable HTML workspace dashboard")
+    dashboard.add_argument("workspace", type=Path)
+    dashboard.add_argument("--output", type=Path, help="defaults to WORKSPACE/dashboard.html")
 
     citation = sub.add_parser("validate-citation", help="verify a citation refers to a known source")
     citation.add_argument("workspace", type=Path)
@@ -247,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(update_topic(_workspace(str(args.workspace)), args.topic_id, source_ids=args.source, prerequisites=args.prerequisite, related_topics=args.related, path_ids=args.path, status=args.status, confirm=args.confirm), indent=2))
     elif args.command == "path-create":
         print(create_path(_workspace(str(args.workspace)), name=args.name, topic_ids=args.topic, source_ids=args.source, prerequisites=args.prerequisite, target_outcome=args.target_outcome))
+    elif args.command == "remove":
+        print(json.dumps(remove_record(_workspace(str(args.workspace)), args.record_id, confirm=args.confirm), indent=2))
     elif args.command == "recommend":
         print(json.dumps(recommend(_workspace(str(args.workspace)), limit=args.limit), indent=2))
     elif args.command == "session-start":
@@ -264,6 +294,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(query_manifest(_workspace(str(args.workspace)), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
     elif args.command == "progress":
         print(json.dumps(summarize(_workspace(str(args.workspace)), topic_id=args.topic), indent=2))
+    elif args.command == "dashboard":
+        print(json.dumps(generate_dashboard(_workspace(str(args.workspace)), output=args.output), indent=2))
     elif args.command == "validate-citation":
         print(json.dumps(validate_citation(_workspace(str(args.workspace)), args.text), indent=2))
     elif args.command == "tutor-question":
@@ -299,6 +331,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             index = MilvusLiteIndex(_workspace(str(args.workspace)))
             print(json.dumps(index.query(_embedding_provider(args), args.text, source_id=args.source, topic_id=args.topic, path_id=args.path, limit=args.limit), indent=2))
+    if args.command in _CANONICAL_MUTATION_COMMANDS and not (args.command == "remove" and not args.confirm):
+        _refresh_dashboard_after_mutation(args)
     return 0
 
 

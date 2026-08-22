@@ -206,6 +206,22 @@ The protocol deliberately requires a preview and/or confirmation before an agent
 
 You can still use any individual CLI command directly when you want to inspect or control an operation precisely.
 
+### Remove learning content without breaking the remaining curriculum
+
+Use `remove` with a source, topic, or path ID. It is deliberately a two-step destructive operation:
+
+```bash
+# First inspect the exact deletion/pruning plan.
+learning remove ~/Learning source-20260820-linear-algebra-1234abcd
+
+# Re-run only after you approve that plan.
+learning remove ~/Learning source-20260820-linear-algebra-1234abcd --confirm
+```
+
+Removing a **source** deletes its canonical extracted content and removes it from topic/path associations. A topic is removed only when that source was its last associated source. A path is retained when it still has another topic or source; its removed pieces are simply pruned. A path that becomes empty is removed. Related single-scope sessions, confusion items, and review entries are removed; mixed-scope session associations are pruned instead. Removing a topic or path follows the same relationship-aware rule. The original file/book outside the workspace is never deleted.
+
+The confirmed operation rebuilds the lexical index, clears the optional local vector cache (run `learning vector-reindex` if you use vectors), and automatically refreshes `dashboard.html`.
+
 ## 8. Review, confusion, and progress
 
 Tutor answer evaluation persists evidence by recall, explanation, and application; it updates a per-topic current due queue and appends review history. Incorrect or incomplete answers can create or merge stable confusion records.
@@ -218,7 +234,21 @@ learning recommend ~/Learning
 
 Read `reviews/due.md` for the current queue, `reviews/history.md` for history, and `confusion/open/` for the concepts needing remediation.
 
-## 9. Optional semantic vector search
+## 9. Local dashboard
+
+Generate a self-contained, read-only HTML snapshot for any learning workspace:
+
+```bash
+learning dashboard ~/Learning/machine-learning
+```
+
+Open `~/Learning/machine-learning/dashboard.html` directly in a browser. No server, database, account, or network connection is needed. It shows sources, topics, paths, sessions, question/evaluation evidence, open confusion, extraction provenance, associations, and record locations. The overview's **Charts scoped to** control recalculates completion, evidence, open-confusion, path-progress, and activity charts for the selected topic, learning path, or content source; select **Entire workspace** to restore global values. The **Explore all** view is a cross-record query surface: search once across topics, paths, content, sessions, and confusion, then narrow with the record-type and status filters. The focused pages remain useful when you already know the record class. The overview includes interactive completion, evidence, path-progress, and study-activity charts; click a metric, chart action, or path to open the related queryable records. Use the navigation, status filters, and free-text search to inspect the workspace.
+
+Completion is deliberately transparent: **topic completion %** is `topics marked completed ÷ all topics`, and a path's percentage is `completed assigned topics ÷ assigned topics`. It is a workflow-progress measure, not an inferred mastery score.
+
+The dashboard is derived output, not canonical learning state. Every successful canonical data-creation or data-update command automatically creates or refreshes it. If you edit canonical Markdown outside the CLI (for example in an editor or an agent integration), run `learning dashboard ~/Learning/machine-learning` afterward. A compatible agent has the same obligation; see [`../skills/learning-dashboard.md`](../skills/learning-dashboard.md).
+
+## 10. Optional semantic vector search
 
 Milvus Lite is a local, disposable retrieval cache. It stores vector embeddings plus citation metadata for chunks from `extracted.md`; it does not own learning state or original source material.
 
@@ -239,7 +269,7 @@ A full rebuild writes a new vector generation, publishes it only after building 
 
 `hash` is deterministic and good for testing; use `sentence-transformers` or a command embedding provider for better semantic retrieval. Tutor and tutor-session commands use `--retrieval-engine auto` by default: they select a compatible current Milvus index first, then safely fall back to lexical retrieval if the vector cache is unavailable, stale, mismatched, fails, or has no evidence. Use `--retrieval-engine lexical` to force the portable baseline.
 
-## 10. Optional high-fidelity Docling conversion
+## 11. Optional high-fidelity Docling conversion
 
 The default extractor is dependency-light and remains the portable baseline. For layout-sensitive PDFs, DOCX, HTML, and images—such as textbooks with columns, tables, formulas, or scans—Docling can produce more structured canonical Markdown.
 
@@ -256,7 +286,7 @@ learning ingest ./textbook.pdf --workspace ~/Learning/machine-learning --docling
 
 The resulting `extracted.md` remains the portable canonical teaching text. `source.md` records `extraction_engines` for provenance; Docling models, caches, and the original file do not need to be committed or copied to another machine.
 
-## 11. Use one learning repo on multiple machines
+## 12. Use one learning repo on multiple machines
 
 Put the workspace in a private Git repository. Commit the durable Markdown state and ignore derived local caches:
 
@@ -286,7 +316,7 @@ You can resume because the synced workspace includes `extracted.md`, topics, pat
 
 Do not edit on both machines concurrently. Pull before a study session and commit/push afterward.
 
-## 12. Recovery and troubleshooting
+## 13. Recovery and troubleshooting
 
 | Problem | What to do |
 | --- | --- |
@@ -297,7 +327,7 @@ Do not edit on both machines concurrently. Pull before a study session and commi
 | Ingestion finds a duplicate | Inspect `conflicts/open/` and confirm whether it replaces, duplicates, or remains separate. |
 | Tutor cannot connect to a provider | Use a local `--provider-command`, or provide the explicit network flags required by the CLI. |
 
-## 13. Reference map
+## 14. Reference map
 
 - [Data conventions](../protocol/data-conventions.md)
 - [Safety policy](../protocol/safety-policy.md)

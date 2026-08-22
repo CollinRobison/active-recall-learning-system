@@ -23,8 +23,11 @@ from active_recall.session import append_turn, load_session, start_session, upda
 from active_recall.tutor import Tutor
 from active_recall.orchestrator import TutorSession
 from active_recall.catalog import create_path, create_topic, recommend, update_topic
+from active_recall.cli import main as cli_main
+from active_recall.dashboard import dashboard_data, generate_dashboard
 from active_recall.progress import summarize
 from active_recall.reviews import record_review
+from active_recall.removal import remove_record
 from active_recall.workspace import init_workspace, iter_records
 
 
@@ -47,6 +50,10 @@ class FrontmatterTests(unittest.TestCase):
         self.assertTrue(metadata["active"])
         self.assertEqual(body, "# Topic\n")
 
+    def test_parses_yaml_style_inline_lists(self) -> None:
+        metadata, _ = parse("---\nsource_ids: [source-one, source-two]\n---\n")
+        self.assertEqual(metadata["source_ids"], ["source-one", "source-two"])
+
 
 class WorkspaceTests(unittest.TestCase):
     def test_init_is_non_destructive(self) -> None:
@@ -59,6 +66,81 @@ class WorkspaceTests(unittest.TestCase):
             init_workspace(root)
             self.assertEqual(readme.read_text(encoding="utf-8"), "custom\n")
             self.assertTrue((root / "index/manifest.jsonl").exists())
+
+    def test_dashboard_is_a_self_contained_read_only_workspace_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "learning"; source = root / "book.md"
+            source.write_text("# Dashboard evidence\n\nUseful learning text.\n", encoding="utf-8")
+            init_workspace(workspace); source_id = ingest_local(source, workspace)["source_id"]
+            topic = create_topic(workspace, name="Dashboard topic", source_ids=[source_id])
+            topic_id = parse(topic.read_text(encoding="utf-8"))[0]["id"]
+            create_path(workspace, name="Dashboard path", topic_ids=[topic_id], source_ids=[source_id])
+            result = generate_dashboard(workspace)
+            page = Path(result["dashboard"])
+            html = page.read_text(encoding="utf-8")
+            self.assertEqual(result["status"], "generated")
+            self.assertIn("Dashboard topic", html)
+            self.assertIn("Queryable workspace records", html)
+            self.assertIn("Explore all", html)
+            self.assertIn("All record types", html)
+            self.assertIn("Charts scoped to", html)
+            self.assertIn("function scoped(scope)", html)
+            self.assertIn("const DATA=", html)
+            self.assertIn("tag-link", html)
+            self.assertIn("Extracted with:", html)
+            self.assertIn("function sourceHealth(counts)", html)
+            self.assertEqual(dashboard_data(workspace)["summary"]["topics"], 1)
+            self.assertEqual(dashboard_data(workspace)["summary"]["topic_completion_percentage"], 0)
+            update_topic(workspace, topic_id, status="completed", confirm=True)
+            snapshot = dashboard_data(workspace)
+            self.assertEqual(snapshot["summary"]["topic_completion_percentage"], 100)
+            self.assertEqual(snapshot["path_completion"][0]["percentage"], 100)
+
+    def test_cli_mutations_always_regenerate_dashboard(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "learning"
+            self.assertEqual(cli_main(["init", str(workspace)]), 0)
+            dashboard = workspace / "dashboard.html"
+            self.assertTrue(dashboard.exists())
+            self.assertEqual(cli_main(["topic-create", str(workspace), "Auto dashboard topic"]), 0)
+            self.assertIn("Auto dashboard topic", dashboard.read_text(encoding="utf-8"))
+
+    def test_remove_source_prunes_only_its_orphaned_topics_paths_and_sessions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); workspace = root / "learning"; first = root / "first.md"; second = root / "second.md"
+            first.write_text("# First book\n", encoding="utf-8"); second.write_text("# Second book\n", encoding="utf-8")
+            init_workspace(workspace)
+            first_id = ingest_local(first, workspace)["source_id"]; second_id = ingest_local(second, workspace)["source_id"]
+            first_topic = create_topic(workspace, name="First-only topic", source_ids=[first_id]); second_topic = create_topic(workspace, name="Second topic", source_ids=[second_id])
+            first_topic_id = parse(first_topic.read_text(encoding="utf-8"))[0]["id"]; second_topic_id = parse(second_topic.read_text(encoding="utf-8"))[0]["id"]
+            only_path = create_path(workspace, name="First-only path", topic_ids=[first_topic_id], source_ids=[first_id])
+            mixed_path = create_path(workspace, name="Mixed path", topic_ids=[first_topic_id, second_topic_id], source_ids=[first_id, second_id])
+            session = start_session(workspace, scope_type="topic", scope_ids=[first_topic_id], session_id="session-first")
+            mixed_session = start_session(workspace, scope_type="topic", scope_ids=[first_topic_id, second_topic_id], session_id="session-mixed")
+            confusion = record_confusion(workspace, topic_id=first_topic_id, concept="first concept", question="Q", answer="A", missing="M", source_location=first_id, source_ids=[first_id])
+            confusion_id = parse(confusion.read_text(encoding="utf-8"))[0]["id"]
+            record_review(workspace, topic_id=second_topic_id, session_id="kept-session", classification="correct", confidence=4, next_review_at="2030-01-01T00:00:00Z", citation=first_id)
+            preview = remove_record(workspace, first_id)
+            self.assertEqual(preview["status"], "confirmation-required")
+            self.assertIn(confusion_id, preview["delete_confusion_ids"])
+            self.assertIn(parse(mixed_path.read_text(encoding="utf-8"))[0]["id"], preview["update_record_ids"])
+            self.assertTrue(first_topic.exists())
+            self.assertEqual(cli_main(["remove", str(workspace), first_id, "--confirm"]), 0)
+            dashboard = workspace / "dashboard.html"
+            self.assertTrue(dashboard.exists())
+            self.assertNotIn("First-only topic", dashboard.read_text(encoding="utf-8"))
+            self.assertFalse((workspace / "sources" / first_id).exists())
+            self.assertFalse(first_topic.exists()); self.assertFalse(only_path.exists()); self.assertFalse(session.exists())
+            mixed_metadata, _ = parse(mixed_path.read_text(encoding="utf-8"))
+            self.assertEqual(mixed_metadata["topic_ids"], [second_topic_id])
+            self.assertEqual(mixed_metadata["source_ids"], [second_id])
+            self.assertNotIn(first_topic_id, mixed_path.read_text(encoding="utf-8"))
+            mixed_session_metadata, _ = parse(mixed_session.read_text(encoding="utf-8"))
+            self.assertEqual(mixed_session_metadata["scope_ids"], [second_topic_id])
+            self.assertNotIn(first_topic_id, mixed_session.read_text(encoding="utf-8"))
+            self.assertFalse(confusion.exists())
+            self.assertNotIn(first_id, (workspace / "reviews" / "due.md").read_text(encoding="utf-8"))
+            self.assertNotIn(first_id, (workspace / "reviews" / "history.md").read_text(encoding="utf-8"))
 
 
 class IngestionTests(unittest.TestCase):

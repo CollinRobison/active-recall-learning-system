@@ -16,4 +16,4 @@ If symlinks are unsuitable, copy those directories instead. Keep this repository
 
 In Claude Code, say `Use the active-recall study-session skill for WORKSPACE` (or `source-ingest`, `catalog`, `teach`, etc.). Claude reads `.claude/skills/active-recall/<skill>.md`, the linked protocol, and performs the specified file/tool operations. For runtime helpers use `learning init WORKSPACE`, `learning ingest INPUT --workspace WORKSPACE`, and the commands documented in `README.md`.
 
-Require confirmation before canonical metadata/path edits or network access; save every turn before asking the next question.
+Require confirmation before canonical metadata/path edits or network access; save every turn before asking the next question. After canonical writes outside the CLI, run `learning dashboard WORKSPACE`; CLI mutations refresh it automatically.

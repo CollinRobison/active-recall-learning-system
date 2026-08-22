@@ -14,4 +14,4 @@ Also place `/absolute/path/to/active-recall-learning-system/protocol/learning-po
 
 ## Invoke
 
-Ask Hermes: `Use the active-recall study-session skill for ~/Learning` or `Use active-recall source-ingest to add INPUT to ~/Learning`. The skill directory exposes the named Markdown procedures; invoke local helpers directly, e.g. `learning recommend ~/Learning`. Hermes must request confirmation before canonical workspace edits or network use and must retain citations and durable turn records.
+Ask Hermes: `Use the active-recall study-session skill for ~/Learning` or `Use active-recall source-ingest to add INPUT to ~/Learning`. The skill directory exposes the named Markdown procedures; invoke local helpers directly, e.g. `learning recommend ~/Learning`. Hermes must request confirmation before canonical workspace edits or network use, retain citations and durable turn records, and regenerate `learning dashboard WORKSPACE` after canonical writes that bypass the CLI.

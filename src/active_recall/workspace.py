@@ -96,6 +96,15 @@ def init_workspace(root: Path, *, overwrite_empty_files: bool = False) -> list[P
     return created
 
 
+def find_workspace(path: Path) -> Path:
+    """Return the containing learning workspace for a record path."""
+    candidate = path.expanduser().resolve()
+    for directory in (candidate, *candidate.parents):
+        if (directory / "workspace.md").is_file() and (directory / "catalog").is_dir():
+            return directory
+    raise FileNotFoundError(f"No learning workspace contains {path}")
+
+
 def iter_records(root: Path, kinds: Iterable[str] | None = None) -> Iterable[tuple[Path, dict[str, Any], str]]:
     """Yield Markdown records with valid frontmatter."""
     wanted = set(kinds or ())

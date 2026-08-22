@@ -5,7 +5,7 @@
 At the target project root, expose the portable instructions through Codex's project instruction file:
 
 ```sh
-printf '\nRead /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the matching /absolute/path/to/active-recall-learning-system/skills/*.md before handling learning requests.\n' >> AGENTS.md
+printf '\nRead /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the matching /absolute/path/to/active-recall-learning-system/skills/*.md before handling learning requests. After every successful write to canonical workspace records, run `learning dashboard WORKSPACE` unless the CLI already refreshed it.\n' >> AGENTS.md
 python -m pip install -e /absolute/path/to/active-recall-learning-system
 ```
 

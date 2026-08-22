@@ -32,6 +32,16 @@ Track recall, explanation, application, confidence, source coverage, and delayed
 
 Store the chosen interval and reason in the review history. Users may override dates.
 
+## Derived dashboard
+
+`<workspace>/dashboard.html` is a derived, read-only snapshot of the canonical Markdown records. After every successful agent action that changes canonical workspace records, regenerate it before responding:
+
+```sh
+learning dashboard WORKSPACE
+```
+
+The CLI refreshes the dashboard automatically after successful canonical mutations. Agents must run the command explicitly after direct filesystem edits or other integrations that bypass the CLI. Read-only actions do not require a refresh. If regeneration fails, preserve the successful canonical write and report the dashboard failure separately.
+
 ## Feynman teach-back
 
 Treat teach-back as retrieval, self-explanation, elaboration, and feedback—not as a single validated branded protocol. Ask why/how/what-if follow-ups, distinguish omission from error, stop false branches, repair misconceptions, and move on after adequate depth or a configured limit.
