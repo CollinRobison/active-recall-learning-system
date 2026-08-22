@@ -50,6 +50,10 @@ class FrontmatterTests(unittest.TestCase):
         self.assertTrue(metadata["active"])
         self.assertEqual(body, "# Topic\n")
 
+    def test_parses_yaml_style_inline_lists(self) -> None:
+        metadata, _ = parse("---\nsource_ids: [source-one, source-two]\n---\n")
+        self.assertEqual(metadata["source_ids"], ["source-one", "source-two"])
+
 
 class WorkspaceTests(unittest.TestCase):
     def test_init_is_non_destructive(self) -> None:
@@ -82,6 +86,9 @@ class WorkspaceTests(unittest.TestCase):
             self.assertIn("Charts scoped to", html)
             self.assertIn("function scoped(scope)", html)
             self.assertIn("const DATA=", html)
+            self.assertIn("tag-link", html)
+            self.assertIn("Extracted with:", html)
+            self.assertIn("function sourceHealth(counts)", html)
             self.assertEqual(dashboard_data(workspace)["summary"]["topics"], 1)
             self.assertEqual(dashboard_data(workspace)["summary"]["topic_completion_percentage"], 0)
             update_topic(workspace, topic_id, status="completed", confirm=True)

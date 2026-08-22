@@ -6,7 +6,7 @@ Create a project instruction file containing links to the shared core:
 
 ```sh
 cat > GEMINI.md <<'EOF'
-For learning requests, read /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the applicable /absolute/path/to/active-recall-learning-system/skills/*.md. Follow their confirmation, citation, and incremental-save requirements.
+For learning requests, read /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the applicable /absolute/path/to/active-recall-learning-system/skills/*.md. Follow their confirmation, citation, incremental-save, and `learning dashboard WORKSPACE` regeneration requirements after canonical writes.
 EOF
 python -m pip install -e /absolute/path/to/active-recall-learning-system
 ```

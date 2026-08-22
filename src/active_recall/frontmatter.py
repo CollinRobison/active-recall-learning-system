@@ -23,6 +23,9 @@ def _scalar(value: str) -> Any:
         try:
             return json.loads(value.replace("'", '"'))
         except json.JSONDecodeError:
+            if value.startswith("[") and value.endswith("]"):
+                inner = value[1:-1].strip()
+                return [] if not inner else [_scalar(item) for item in inner.split(",")]
             return value
     if re.fullmatch(r"-?\d+", value):
         return int(value)

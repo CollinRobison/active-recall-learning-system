@@ -12,7 +12,7 @@ description: Markdown-first active-recall learning protocol
 globs: ["**/*"]
 alwaysApply: false
 ---
-For learning tasks, read /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the applicable skills/*.md from that repository. Preserve citations, confirmations, and incremental session saves.
+For learning tasks, read /absolute/path/to/active-recall-learning-system/protocol/learning-policy.md and the applicable skills/*.md from that repository. Preserve citations, confirmations, incremental session saves, and regenerate `learning dashboard WORKSPACE` after canonical writes; direct edits require the explicit command.
 EOF
 python -m pip install -e /absolute/path/to/active-recall-learning-system
 ```
